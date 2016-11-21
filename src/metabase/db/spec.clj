@@ -71,3 +71,28 @@
   (merge {:subprotocol "oracle:thin"
           :subname     (str "@" host ":" port)}
          (dissoc opts :host :port)))
+
+(defn impala
+  "Create a database specification for a Impala database. Opts should include keys
+  for :db, :user, and :password and authentication mechanism."
+  [{:keys [host port db make-pool? authMech user password connProperties]
+    :or {host "localhost", port 21050, db "default", make-pool? true, authMech "0" connProperties ""}
+    :as opts}]
+  (merge {:classname "com.cloudera.impala.jdbc41.Driver" ; must be in plugins directory
+          :subprotocol "impala"
+          :subname (str "//" host ":" port "/" db ";AuthMech=" authMech ";"  connProperties ";UseNativeQuery=1")  ;;Use UseNativeQuery=1 to prevent SQL rewriting by the JDBC driver
+          :make-pool? make-pool?}
+         (dissoc opts :host :port :db :connProperties)))
+
+(defn vertica
+  "Create a database specification for a vertica database. Opts should include
+  keys for :db, :user, and :password. You can also optionally set host and
+  port."
+  [{:keys [host port db make-pool?]
+    :or {host "localhost", port 5433, db "", make-pool? true}
+    :as opts}]
+  (merge {:classname "com.vertica.jdbc.Driver"
+          :subprotocol "vertica"
+          :subname (str "//" host ":" port "/" db)
+          :make-pool? make-pool?}
+         (dissoc opts :host :port :db)))
