@@ -10,15 +10,15 @@
 (defsetting glip-login "Glip login (usually comes in a form of email)")
 (defsetting glip-password "Glip password")
 
-(def ^:private ^:const ^String glip-api-base-url "https://glip.com/api")
-(def ^:private ^:const ^String files-group-name "metabase_files")
+(def ^:private ^:const ^String glip-api-base-url "https://api.glip.com/")
+(def ^:private ^:const ^String files-group-id "metabase_files")
 
 (defn glip-configured?
   "Is Glip integration configured?"
   []
   (boolean (seq (glip-password))))
 
-
+;;TODO: redo
 (defn- handle-response [{:keys [status body]}]
   (let [body (json/parse-string body keyword)]
     (if (and (= 200 status) (:ok body))
@@ -29,14 +29,16 @@
         (log/warn (u/pprint-to-str 'red error))
         (throw (ex-info (:message error) error))))))
 
-(defn- do-slack-request [request-fn params-key endpoint & {:keys [token], :as params, :or {token (slack-token)}}]
+
+
+(defn- do-glip-request [request-fn params-key endpoint & {:keys [token], :as params, :or {token (slack-token)}}]
   (when token
-    (handle-response (request-fn (str slack-api-base-url "/" (name endpoint)) {params-key      (assoc params :token token)
+    (handle-response (request-fn (str glip-api-base-url "/" (name endpoint)) {params-key      (assoc params :token token)
                                                                               :conn-timeout   1000
                                                                               :socket-timeout 1000}))))
 
-(def ^{:arglists '([endpoint & {:as params}]), :style/indent 1} GET  "Make a GET request to the Slack API."  (partial do-slack-request http/get  :query-params))
-(def ^{:arglists '([endpoint & {:as params}]), :style/indent 1} POST "Make a POST request to the Slack API." (partial do-slack-request http/post :form-params))
+(def ^{:arglists '([endpoint & {:as params}]), :style/indent 1} GET  "Make a GET request to the Glip API."  (partial do-glip-request http/get  :query-params))
+(def ^{:arglists '([endpoint & {:as params}]), :style/indent 1} POST "Make a POST request to the Glip API." (partial do-glip-request http/post :form-params))
 
 (def ^:private ^{:arglists '([channel-id & {:as args}])} create-channel!
   "Calls Slack api `channels.create` for CHANNEL."
@@ -60,7 +62,7 @@
   (when-let [{files-channel :channel, :as response} (create-channel! files-channel-name)]
     (when-not files-channel
       (log/error (u/pprint-to-str 'red response))
-      (throw (ex-info "Error creating Slack channel for Metabase file uploads" response)))
+      (throw (ex-info "Error creating Glip group for Metabase file uploads" response)))
     ;; Right after creating our files channel, archive it. This is because we don't need users to see it.
     (u/prog1 files-channel
       (archive-channel! (:id <>)))))
@@ -97,7 +99,7 @@
     (if (= 200 (:status response))
       (u/prog1 (get-in (:body response) [:file :url_private])
         (log/debug "Uploaded image" <>))
-      (log/warn "Error uploading file to Slack:" (u/pprint-to-str response)))))
+      (log/warn "Error uploading file to Glip:" (u/pprint-to-str response)))))
 
 (defn post-chat-message!
   "Calls Slack api `chat.postMessage` function and posts a message to a given channel.
