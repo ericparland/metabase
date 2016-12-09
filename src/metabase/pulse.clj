@@ -63,6 +63,16 @@
                               (str "Pulse: " (:name pulse))
                               attachments)))
 
+(defn- send-glip-pulse!
+  "Post a `Pulse` to a Glip group given a list of card results to render and details about the Glip destination."
+  [pulse results channel-id]
+  {:pre [(string? channel-id)]}
+  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Slack" (:id pulse) (:name pulse)))
+  (let [attachments (create-and-upload-slack-attachments! results)]
+    (slack/post-chat-message! channel-id
+                              (str "Pulse: " (:name pulse))
+                              attachments)))
+
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
    `PulseCard`, formatting the results, and sending the results to any specified destination.
@@ -81,3 +91,18 @@
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
           :slack (send-slack-pulse! pulse results (:channel details)))))))
+
+
+
+
+(defn handle-response [{:keys [status body]}]
+  (let [body (json/parse-string body keyword)]
+    (if (and (= 200 status) (:ok body))
+        body
+        (let [error (if (= (:error body) "invalid_auth")
+                        {:errors {:slack-token "Invalid token"}}
+                        {:message (str "Slack API error: " (:error body)), :response body})]
+          (log/warn error)
+          (throw (ex-info (:message error) error))))))
+
+
