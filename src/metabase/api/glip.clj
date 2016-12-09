@@ -9,8 +9,8 @@
             [metabase.util.schema :as su]))
 
 (defendpoint PUT "/settings"
-  "Update Slack related settings. You must be a superuser to do this."
-  [:as {{glip-token :slack-token, metabot-enabled :metabot-enabled, :as slack-settings} :body}]
+  "Update Glip related settings. You must be a superuser to do this."
+  [:as {{glip-login :glip-login, glip-login :glip-login, metabot-enabled :metabot-enabled, :as slack-settings} :body}]
   {slack-token     (s/maybe su/NonBlankString)
    metabot-enabled s/Bool}
   (check-superuser)

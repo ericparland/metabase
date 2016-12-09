@@ -6,7 +6,7 @@
             [metabase.util :as u]))
 
 
-;; Define settings which captures our Glip credentials
+;; Define settings which captures our Glip credentials and group to post to
 (defsetting glip-login "Glip login (usually comes in a form of email)")
 (defsetting glip-password "Glip password")
 (defsetting glip-group-id "Glip group id")
@@ -20,6 +20,7 @@
   (boolean (comp (seq glip-password glip-login))))
 
 (def cs (clj-http.cookies/cookie-store))
+
 
 (defn regenerate-cookie [] (http/put (str glip-api-base-url "/login") {:form-params {
                                                                                       :email email
@@ -46,9 +47,7 @@
                                                                                    :url (:storage_url json-parsed)}]}
                                                         :content-type :json
                                                         :cookie-store cs})
-            (println "Error uploading file to Slack:" json-parsed)
-            )
-        ))))
+            (log/warn "Error uploading file to Slack:" (u/pprint-to-str json-parsed)))))))
 
 (defn post-chat-message!
   "Calls Glip api `post` function and posts a message to a given group.
@@ -59,8 +58,7 @@
                             {:group_id    group-id
                              :text        text-or-nil}
               :cookie-store cs
-              :content-type :json
-              }))
+              :content-type :json}))
 
 
 
