@@ -80,16 +80,27 @@
   []
   (let [chan-types (-> channel-types
                        (assoc-in [:slack :configured] (slack/slack-configured?))
+                       (assoc-in [:glip :configured] (glip/glip-configured?))
                        (assoc-in [:email :configured] (email/email-configured?)))]
-    {:channels (if-not (get-in chan-types [:slack :configured])
-                 ;; no Slack integration, so we are g2g
-                 chan-types
-                 ;; if we have Slack enabled build a dynamic list of channels/users
-                 (let [slack-channels (for [channel (slack/channels-list)]
-                                        (str \# (:name channel)))
-                       slack-users    (for [user (slack/users-list)]
-                                        (str \@ (:name user)))]
-                   (assoc-in chan-types [:slack :fields 0 :options] (concat slack-channels slack-users))))}))
+    ;{:channels (if-not (get-in chan-types [:slack :configured])
+    ;             ;; no Slack integration, so we are g2g
+    ;             chan-types
+    ;             ;; if we have Slack enabled build a dynamic list of channels/users
+    ;             (let [slack-channels (for [channel (slack/channels-list)]
+    ;                                    (str \# (:name channel)))
+    ;                   slack-users    (for [user (slack/users-list)]
+    ;                                    (str \@ (:name user)))]
+    ;               (assoc-in chan-types [:slack :fields 0 :options] (concat slack-channels slack-users))))}
+    ;;TODO: this may work out... or maybe won't
+    {:channels (if-not (get-in chan-types [:glip :configured])
+                       ;; no Slack integration, so we are g2g
+                       chan-types
+                       ;; if we have Slack enabled build a dynamic list of channels/users
+                       (let [glip-groups (for [channel (glip/groups-list)]
+                                              (str \# (:name channel)))
+                             glip-users    (for [user (glip/users-list)]
+                                              (str \@ (:name user)))]
+                         (assoc-in chan-types [:slack :fields 0 :options] (concat slack-channels slack-users))))}))
 
 
 (defendpoint GET "/preview_card/:id"

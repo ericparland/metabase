@@ -12,7 +12,6 @@
 (defsetting glip-group-id "Glip group id")
 
 (def ^:private ^:const ^String glip-api-base-url "https://api.glip.com/")
-(def ^:private ^:const ^String files-group-id "metabase_files")
 
 (defn glip-configured?
   "Is Glip integration configured?"
@@ -21,6 +20,15 @@
 
 (def cs (clj-http.cookies/cookie-store))
 
+;;TODO: rewrite
+(def ^{:arglists '([& {:as args}])} groups-list
+  "Calls Slack api `channels.list` function and returns the list of available channels."
+  (comp :channels (partial GET :channels.list, :exclude_archived 1)))
+
+;;TODO: rewrite
+(def ^{:arglists '([& {:as args}])} users-list
+  "Calls Slack api `users.list` function and returns the list of available users."
+  (comp :members (partial GET :users.list)))
 
 (defn regenerate-cookie [] (http/put (str glip-api-base-url "/login") {:form-params {
                                                                                       :email email
@@ -38,7 +46,7 @@
       (let	 [json-parsed (first json-response)]
         (if (= 200 (:status response))
             (http/post (str glip-api-base-url "/file") {:form-params {:creator_id (:creator_id json-parsed)
-                                                                      :group_id  files-group-id
+                                                                      :group_id  glip-group-id
                                                                       :name filename
                                                                       :versions [{
                                                                                    :download_url (:download_url json-parsed)
@@ -53,7 +61,7 @@
   "Calls Glip api `post` function and posts a message to a given group.
    ATTACHMENTS should be serialized JSON."
   [group-id text-or-nil]
-  (http/post "https://api.glip.com/post"
+  (http/post (str glip-api-base-url "/post")
              {:form-params
                             {:group_id    group-id
                              :text        text-or-nil}
