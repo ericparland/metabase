@@ -4,25 +4,16 @@
             [schema.core :as s]
             [metabase.api.common :refer :all]
             [metabase.config :as config]
-            [metabase.integrations.slack :as slack]
+            [metabase.integrations.glip :as glip]
             [metabase.models.setting :as setting]
             [metabase.util.schema :as su]))
 
+;TODO: work on this
 (defendpoint PUT "/settings"
   "Update Glip related settings. You must be a superuser to do this."
-  [:as {{glip-login :glip-login, glip-login :glip-login, metabot-enabled :metabot-enabled, :as slack-settings} :body}]
-  {slack-token     (s/maybe su/NonBlankString)
-   metabot-enabled s/Bool}
-  (check-superuser)
-  (if-not slack-token
-    (setting/set-many! {:slack-token nil, :metabot-enabled false})
-    (try
-      ;; just check that channels.list doesn't throw an exception (a.k.a. that the token works)
-      (when-not config/is-test?
-        (slack/GET :channels.list, :exclude_archived 1, :token slack-token))
-      (setting/set-many! slack-settings)
-      {:ok true}
-      (catch clojure.lang.ExceptionInfo info
-        {:status 400, :body (ex-data info)}))))
+  [:as {{glip-login :glip-login, glip-password :glip-password, :as glip-settings} :body}]
+  {glip-login     (s/maybe su/NonBlankString)
+   glip-password  (s/maybe su/NonBlankString)}
+  (check-superuser))
 
 (define-routes)

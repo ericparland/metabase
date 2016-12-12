@@ -7,6 +7,7 @@
             [metabase.email :as email]
             [metabase.events :as events]
             [metabase.integrations.slack :as slack]
+            [metabase.integrations.glip :as glip]
             (metabase.models [card :refer [Card]]
                              [database :refer [Database]]
                              [interface :as models]
@@ -96,11 +97,9 @@
                        ;; no Slack integration, so we are g2g
                        chan-types
                        ;; if we have Slack enabled build a dynamic list of channels/users
-                       (let [glip-groups (for [channel (glip/groups-list)]
-                                              (str \# (:name channel)))
-                             glip-users    (for [user (glip/users-list)]
-                                              (str \@ (:name user)))]
-                         (assoc-in chan-types [:slack :fields 0 :options] (concat slack-channels slack-users))))}))
+                       (let [glip-groups (for [group (glip/groups-list)]
+                                              (str \# (:set_abbreviation group)))]
+                         (assoc-in chan-types [:glip :fields 0 :options] glip-groups)))}))
 
 
 (defendpoint GET "/preview_card/:id"

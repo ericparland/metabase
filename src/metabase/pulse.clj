@@ -53,6 +53,18 @@
                 :image_url  slack-file-url
                 :fallback   card-name})))))
 
+(defn create-glip-attachments!
+  "Create an attachment in Glip for a given Card by rendering its result into an image and posting it."
+  [card-results]
+    (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} card-results]
+             (let [image-byte-array (render/render-pulse-card-to-png card result)]
+               {:title      card-name
+                :title_link (urls/card-url card-id)
+                :image_url  slack-file-url
+                :fallback   card-name}
+               ))))
+
+
 (defn- send-slack-pulse!
   "Post a `Pulse` to a slack channel given a list of card results to render and details about the slack destination."
   [pulse results channel-id]
@@ -63,15 +75,19 @@
                               (str "Pulse: " (:name pulse))
                               attachments)))
 
+;TODO: dopilit'!
 (defn- send-glip-pulse!
   "Post a `Pulse` to a Glip group given a list of card results to render and details about the Glip destination."
   [pulse results channel-id]
   {:pre [(string? channel-id)]}
-  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Slack" (:id pulse) (:name pulse)))
-  (let [attachments (create-and-upload-slack-attachments! results)]
-    (slack/post-chat-message! channel-id
-                              (str "Pulse: " (:name pulse))
-                              attachments)))
+  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
+  (glip/upload-and-post-file! (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
+            (let [image-byte-array (render/render-pulse-card-to-png card result)]
+              {:title      card-name
+               :title_link (urls/card-url card-id)
+               :fallback   card-name}
+              ))) "image.png")
+  (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse))))
 
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
@@ -90,7 +106,8 @@
                                                             (:channels pulse))]
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
-          :slack (send-slack-pulse! pulse results (:channel details)))))))
+          :slack (send-slack-pulse! pulse results (:channel details))
+          :glip  (send-glip-pulse! pulse results (:channel details)))))))
 
 
 

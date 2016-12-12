@@ -22,9 +22,9 @@
 (def cs (clj-http.cookies/cookie-store))
 
 ;;TODO: rewrite
-(def ^{:arglists '([& {:as args}])} groups-list
-  "Calls Slack api `channels.list` function and returns the list of available channels."
-  (comp :channels (partial GET :channels.list, :exclude_archived 1)))
+(defn groups-list []
+  "Calls Glip api `index` function and returns the list of available channels."
+  (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
 
 ;;TODO: rewrite
 (def ^{:arglists '([& {:as args}])} users-list
@@ -57,6 +57,7 @@
                                                         :content-type :json
                                                         :cookie-store cs})
             (log/warn "Error uploading file to Slack:" (u/pprint-to-str json-parsed)))))))
+
 
 (defn post-chat-message!
   "Calls Glip api `post` function and posts a message to a given group.
