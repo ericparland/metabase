@@ -9,7 +9,8 @@
 ;; Define settings which captures our Glip credentials and group to post to
 (defsetting glip-login "Glip login (usually comes in a form of email)")
 (defsetting glip-password "Glip password")
-(defsetting glip-group-id "Glip group id")
+;TODO:this probably should go to settings
+;(defsetting glip-group-id "Glip group id")
 
 (def ^:private ^:const ^String glip-api-base-url "https://api.glip.com/")
 
@@ -37,7 +38,7 @@
                                                                        :content-type :json}))
 
 (defn upload-and-post-file!
-  "Calls Slack api `files.upload` function and returns the body of the uploaded file."
+  "Calls Glip api `upload` function and uploads and posts file."
   [file filename]
   (let [response (http/post (str glip-api-base-url "/upload") {:multipart [ {:name "file",     :content file}
                                                                             {:name "filename", :content filename}]
