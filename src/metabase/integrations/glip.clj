@@ -12,7 +12,7 @@
 ;TODO:this probably shouldn't go to settings
 ;(defsetting glip-group-id "Glip group id")
 
-(def ^:private ^:const ^String glip-api-base-url "https://api.glip.com/")
+(def ^:private ^:const ^String glip-api-base-url "https://api.glip.com")
 
 (defn glip-configured?
   "Is Glip integration configured?"
@@ -26,8 +26,8 @@
   "Calls Glip api `index` function and returns the list of available channels."
   (log/warn (u/pprint-to-str 'red (str glip-login glip-password)))
   (http/put (str glip-api-base-url "/login") {:form-params {
-                                                             :email (str glip-login)
-                                                             :password (str glip-password)}
+                                                             :email (glip-login)
+                                                             :password (glip-password)}
                                               :cookie-store cs
                                               :debug :true
                                               :content-type :json})
@@ -39,8 +39,8 @@
 ;  (comp :members (partial GET :users.list)))
 
 (defn regenerate-cookie [] (http/put (str glip-api-base-url "/login") {:form-params {
-                                                                                      :email glip-login
-                                                                                      :password glip-password}
+                                                                                      :email (glip-login)
+                                                                                      :password (glip-password)}
                                                                        :cookie-store cs
                                                                        :content-type :json}))
 
@@ -48,8 +48,8 @@
   "Calls Glip api `upload` function and uploads and posts file."
   [file filename glip-group-id]
   (http/put (str glip-api-base-url "/login") {:form-params {
-                                                             :email glip-login
-                                                             :password glip-password}
+                                                             :email (glip-login)
+                                                             :password (glip-password)}
                                               :cookie-store cs
                                               :content-type :json})
   (let [response (http/post (str glip-api-base-url "/upload") {:multipart [ {:name "file",     :content file}
@@ -76,8 +76,8 @@
    ATTACHMENTS should be serialized JSON."
   [group-id text-or-nil]
   (http/put (str glip-api-base-url "/login") {:form-params {
-                                                             :email glip-login
-                                                             :password glip-password}
+                                                             :email (glip-login)
+                                                             :password (glip-password)}
                                               :cookie-store cs
                                               :content-type :json})
   (http/post (str glip-api-base-url "/post")
