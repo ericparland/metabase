@@ -17,7 +17,7 @@
 (defn glip-configured?
   "Is Glip integration configured?"
   []
-  (boolean (comp (seq glip-password glip-login))))
+  (boolean (seq glip-password glip-login)))
 
 (def cs (clj-http.cookies/cookie-store))
 
