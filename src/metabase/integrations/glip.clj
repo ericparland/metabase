@@ -24,7 +24,7 @@
 ;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
-  (regenerate-cookie)(:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword))))
+  (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword))))
 
 ;;TODO: rewrite
 ;(def ^{:arglists '([& {:as args}])} users-list
