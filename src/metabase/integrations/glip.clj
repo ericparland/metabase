@@ -25,9 +25,10 @@
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
   (http/put (str glip-api-base-url "/login") {:form-params {
-                                                             :email glip-login
-                                                             :password glip-password}
+                                                             :email (str glip-login)
+                                                             :password (str glip-password)}
                                               :cookie-store cs
+                                              :debug :true
                                               :content-type :json})
   (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
 
