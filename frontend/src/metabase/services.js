@@ -44,7 +44,7 @@ export const SlackApi = {
 };
 
 export const GlipApi = {
-    updateSettings:              PUT("/api/glip/settings"),
+    updateSettings:              PUT("/api/glip"),
 };
 
 
