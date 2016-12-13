@@ -240,6 +240,9 @@ export var ICON_PATHS = {
     },
     "slack": {
         img: "/app/img/slack.png"
+    },
+    "slack": {
+        img: "/app/img/glip.png"
     }
 };
 

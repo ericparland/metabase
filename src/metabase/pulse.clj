@@ -57,12 +57,12 @@
 (defn create-glip-attachments!
   "Create an attachment in Glip for a given Card by rendering its result into an image and posting it."
   [card-results]
+  (when-let [{channel-id :_id} (glip/groups-list)]
     (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} card-results]
              (let [image-byte-array (render/render-pulse-card-to-png card result)]
                {:title      card-name
                 :title_link (urls/card-url card-id)
-                :fallback   card-name}
-               ))))
+                :fallback   card-name})))))
 
 
 (defn- send-slack-pulse!
