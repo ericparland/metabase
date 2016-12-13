@@ -59,6 +59,7 @@
   (context "/setting"         [] (+auth setting/routes))
   (context "/setup"           [] setup/routes)
   (context "/slack"           [] (+auth slack/routes))
+  (context "/glip"            [] (+auth glip/routes))
   (context "/table"           [] (+auth table/routes))
   (context "/tiles"           [] (+auth tiles/routes))
   (context "/user"            [] (+auth user/routes))
