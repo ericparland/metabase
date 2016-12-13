@@ -21,7 +21,8 @@ import cx from "classnames";
 
 const CHANNEL_ICONS = {
     email: "mail",
-    slack: "slack"
+    slack: "slack",
+    glip: "slack"
 };
 
 export default class PulseEditChannels extends Component {
@@ -228,7 +229,7 @@ export default class PulseEditChannels extends Component {
         // Default to show the default channels until full formInput is loaded
         let channels = formInput.channels || {
             email: { name: "Email", type: "email" },
-            slack: { name: "Glip", type: "glip" },
+            glip: { name: "Glip", type: "glip" },
             slack: { name: "Slack", type: "slack" }
         };
         return (
