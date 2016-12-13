@@ -111,16 +111,3 @@
           :glip  (send-glip-pulse! pulse results (:channel details)))))))
 
 
-
-
-(defn handle-response [{:keys [status body]}]
-  (let [body (json/parse-string body keyword)]
-    (if (and (= 200 status) (:ok body))
-        body
-        (let [error (if (= (:error body) "invalid_auth")
-                        {:errors {:slack-token "Invalid token"}}
-                        {:message (str "Slack API error: " (:error body)), :response body})]
-          (log/warn error)
-          (throw (ex-info (:message error) error))))))
-
-
