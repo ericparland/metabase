@@ -9,7 +9,7 @@
 ;; Define settings which captures our Glip credentials and group to post to
 (defsetting glip-login "Glip login (usually comes in a form of email)")
 (defsetting glip-password "Glip password")
-;TODO:this probably should go to settings
+;TODO:this probably shouldn't go to settings
 ;(defsetting glip-group-id "Glip group id")
 
 (def ^:private ^:const ^String glip-api-base-url "https://api.glip.com/")
