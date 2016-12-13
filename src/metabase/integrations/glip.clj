@@ -24,7 +24,7 @@
 ;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
-  (log/warn (u/pprint-to-str 'red glip-login glip-password))
+  (log/warn (u/pprint-to-str 'red (str glip-login glip-password)))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (str glip-login)
                                                              :password (str glip-password)}
