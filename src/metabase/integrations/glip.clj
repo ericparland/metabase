@@ -21,15 +21,15 @@
 
 (def cs (clj-http.cookies/cookie-store))
 
-;;TODO: rewrite
+;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
   (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
 
 ;;TODO: rewrite
-(def ^{:arglists '([& {:as args}])} users-list
-  "Calls Slack api `users.list` function and returns the list of available users."
-  (comp :members (partial GET :users.list)))
+;(def ^{:arglists '([& {:as args}])} users-list
+;  "Calls Slack api `users.list` function and returns the list of available users."
+;  (comp :members (partial GET :users.list)))
 
 (defn regenerate-cookie [] (http/put (str glip-api-base-url "/login") {:form-params {
                                                                                       :email glip-login
