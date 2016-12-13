@@ -154,7 +154,7 @@ const SECTIONS = [
                     display_name: "Glip password",
                     description: null,
                     placeholder: "Shh...",
-                    type: "password"
+                    type: "password",
                     required: true,
                     autoFocus: false
                 },
