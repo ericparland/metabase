@@ -1,7 +1,7 @@
 
 import { handleActions, combineReducers, createThunkAction } from "metabase/lib/redux";
 
-import { SettingsApi, EmailApi, SlackApi } from "metabase/services";
+import { SettingsApi, EmailApi, SlackApi, GlipApi } from "metabase/services";
 
 import { refreshSiteSettings } from "metabase/redux/settings";
 
@@ -79,6 +79,20 @@ export const updateSlackSettings = createThunkAction("UPDATE_SLACK_SETTINGS", fu
             return await loadSettings();
         } catch(error) {
             console.log("error updating slack settings", settings, error);
+            throw error;
+        }
+    };
+});
+
+// updateGlipSettings
+export const updateGlipSettings = createThunkAction("UPDATE_GLIP_SETTINGS", function(settings) {
+    return async function(dispatch, getState) {
+        try {
+            await GlipApi.updateSettings(settings);
+            await dispatch(refreshSiteSettings());
+            return await loadSettings();
+        } catch(error) {
+            console.log("error updating glip settings", settings, error);
             throw error;
         }
     };
