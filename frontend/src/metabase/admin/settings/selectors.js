@@ -146,7 +146,7 @@ const SECTIONS = [
                     placeholder: "metabase@yourcompany.com",
                     type: "string",
                     required: true,
-                    validations: [["email", "That's not a valid email address"]]
+                    validations: [["email", "That's not a valid email address"]],
                     autoFocus: true
                 },
                 {
