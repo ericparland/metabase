@@ -14,6 +14,14 @@
   [:as {{glip-login :glip-login, glip-password :glip-password, :as glip-settings} :body}]
   {glip-login     (s/maybe su/NonBlankString)
    glip-password  (s/maybe su/NonBlankString)}
-  (check-superuser))
+  (check-superuser)
+  (try
+    ;; just check that channels.list doesn't throw an exception (a.k.a. that the token works)
+    (setting/set-many! glip-settings)
+    {:ok true}
+    (catch clojure.lang.ExceptionInfo info
+           {:status 400, :body (ex-data info)}))
+
+  )
 
 (define-routes)
