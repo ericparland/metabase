@@ -6,6 +6,7 @@
             [metabase.email :as email]
             [metabase.email.messages :as messages]
             [metabase.integrations.slack :as slack]
+            [metabase.integrations.glip :as glip]
             [metabase.models.card :refer [Card]]
             [metabase.pulse.render :as render]
             [metabase.query-processor :as qp]
@@ -60,7 +61,6 @@
              (let [image-byte-array (render/render-pulse-card-to-png card result)]
                {:title      card-name
                 :title_link (urls/card-url card-id)
-                :image_url  slack-file-url
                 :fallback   card-name}
                ))))
 
@@ -81,12 +81,13 @@
   [pulse results channel-id]
   {:pre [(string? channel-id)]}
   (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
+  (glip/regenerate-cookie)
   (glip/upload-and-post-file! (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
               {:title      card-name
                :title_link (urls/card-url card-id)
                :fallback   card-name}
-              ))) "image.png")
+              ))) "image.png" channel-id)
   (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse))))
 
 (defn send-pulse!

@@ -1,4 +1,4 @@
-(ns metabase.integrations.slack
+(ns metabase.integrations.glip
   (:require [clojure.tools.logging :as log]
             [cheshire.core :as json]
             [clj-http.client :as http]
@@ -32,14 +32,14 @@
   (comp :members (partial GET :users.list)))
 
 (defn regenerate-cookie [] (http/put (str glip-api-base-url "/login") {:form-params {
-                                                                                      :email email
-                                                                                      :password password}
+                                                                                      :email glip-login
+                                                                                      :password glip-password}
                                                                        :cookie-store cs
                                                                        :content-type :json}))
 
 (defn upload-and-post-file!
   "Calls Glip api `upload` function and uploads and posts file."
-  [file filename]
+  [file filename glip-group-id]
   (let [response (http/post (str glip-api-base-url "/upload") {:multipart [ {:name "file",     :content file}
                                                                             {:name "filename", :content filename}]
                                                                :cookie-store cs})]

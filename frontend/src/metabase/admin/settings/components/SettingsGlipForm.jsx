@@ -160,27 +160,15 @@ export default class SettingsGlipForm extends Component {
             let errorMessage = (formErrors && formErrors.elements) ? formErrors.elements[element.key] : validationErrors[element.key];
             let value = formData[element.key] == null ? element.defaultValue : formData[element.key];
 
-            if (element.key === "slack-token") {
-                return (
-                    <SettingsSetting
-                        key={element.key}
-                        setting={{ ...element, value }}
-                        updateSetting={(value) => this.handleChangeEvent(element, value)}
-                        errorMessage={errorMessage}
-                        fireOnChange
-                    />
-                );
-            } else if (element.key === "metabot-enabled") {
-                return (
-                    <SettingsSetting
-                        key={element.key}
-                        setting={{ ...element, value }}
-                        updateSetting={(value) => this.handleChangeEvent(element, value)}
-                        errorMessage={errorMessage}
-                        disabled={!this.state.formData["slack-token"]}
-                    />
-                );
-            }
+            return (
+                            <SettingsSetting
+                                key={element.key}
+                                setting={{ ...element, value }}
+                                updateSetting={this.handleChangeEvent.bind(this, element)}
+                                errorMessage={errorMessage}
+                            />
+                   );
+
         });
 
         let saveSettingsButtonStates = {
