@@ -24,6 +24,11 @@
 ;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
+  (http/put (str glip-api-base-url "/login") {:form-params {
+                                                             :email glip-login
+                                                             :password glip-password}
+                                              :cookie-store cs
+                                              :content-type :json})
   (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
 
 ;;TODO: rewrite
@@ -40,6 +45,11 @@
 (defn upload-and-post-file!
   "Calls Glip api `upload` function and uploads and posts file."
   [file filename glip-group-id]
+  (http/put (str glip-api-base-url "/login") {:form-params {
+                                                             :email glip-login
+                                                             :password glip-password}
+                                              :cookie-store cs
+                                              :content-type :json})
   (let [response (http/post (str glip-api-base-url "/upload") {:multipart [ {:name "file",     :content file}
                                                                             {:name "filename", :content filename}]
                                                                :cookie-store cs})]
@@ -63,6 +73,11 @@
   "Calls Glip api `post` function and posts a message to a given group.
    ATTACHMENTS should be serialized JSON."
   [group-id text-or-nil]
+  (http/put (str glip-api-base-url "/login") {:form-params {
+                                                             :email glip-login
+                                                             :password glip-password}
+                                              :cookie-store cs
+                                              :content-type :json})
   (http/post (str glip-api-base-url "/post")
              {:form-params
                             {:group_id    group-id

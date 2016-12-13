@@ -97,10 +97,9 @@
                        ;; no Slack integration, so we are g2g
                        chan-types
                        ;; if we have Slack enabled build a dynamic list of channels/users
-                       comp ((glip/regenerate-cookie)
                        (let [glip-groups (for [group (glip/groups-list)]
                                               (str \# (:set_abbreviation group)))]
-                         (assoc-in chan-types [:glip :fields 0 :options] glip-groups))))}))
+                         (assoc-in chan-types [:glip :fields 0 :options] glip-groups)))}))
 
 
 (defendpoint GET "/preview_card/:id"
