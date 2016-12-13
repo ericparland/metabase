@@ -21,6 +21,7 @@
                           [setting :as setting]
                           [setup :as setup]
                           [slack :as slack]
+                          [glip :as glip]
                           [table :as table]
                           [tiles :as tiles]
                           [user :as user]
