@@ -70,7 +70,7 @@
   "Post a `Pulse` to a Glip group given a list of card results to render and details about the Glip destination."
   [pulse results channel-id]
  ;{:pre [(string? channel-id)]}
-  (let [group-id ((Integer. (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))]
+  (let [group-id ((:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)))]
   (log/warn (u/pprint-to-str group-id))
   (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" group-id (:id pulse) (:name pulse)))
   (glip/regenerate-cookie)
