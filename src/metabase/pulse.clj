@@ -80,7 +80,8 @@
   (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
               (glip/upload-and-post-file! image-byte-array "image.png")))
-  (glip/post-chat-message!  (str "Pulse: " (:name pulse))))
+  ;(glip/post-chat-message!  (str "Pulse: " (:name pulse)))
+         )
     ;)
   )
 
