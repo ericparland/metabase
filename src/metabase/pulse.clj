@@ -54,16 +54,6 @@
                 :image_url  slack-file-url
                 :fallback   card-name})))))
 
-(defn create-glip-attachments!
-  "Create an attachment in Glip for a given Card by rendering its result into an image and posting it."
-  [card-results]
-  (when-let [{channel-id :_id} (glip/groups-list)]
-    (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} card-results]
-             (let [image-byte-array (render/render-pulse-card-to-png card result)]
-               {:title      card-name
-                :title_link (urls/card-url card-id)
-                :fallback   card-name})))))
-
 
 (defn- send-slack-pulse!
   "Post a `Pulse` to a slack channel given a list of card results to render and details about the slack destination."
@@ -83,12 +73,12 @@
   {:pre [(string? channel-id)]}
   (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
   (glip/regenerate-cookie)
-  (glip/upload-and-post-file! (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
+  (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
-              {:title      card-name
+              (glip/upload-and-post-file! image-byte-array "image.png" channel-id
+                {:title      card-name
                :title_link (urls/card-url card-id)
-               :fallback   card-name}
-              ))) "image.png" channel-id)
+               :fallback   card-name}))))
   (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse))))
 
 (defn send-pulse!
