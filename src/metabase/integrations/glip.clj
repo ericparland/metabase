@@ -45,7 +45,7 @@
 
 (defn upload-and-post-file!
   "Calls Glip api `upload` function and uploads and posts file."
-  [file filename glip-group-id]
+  [file filename]
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
@@ -59,7 +59,7 @@
       (let	 [json-parsed (first json-response)]
         (if (= 200 (:status response))
             (http/post (str glip-api-base-url "/file") {:form-params {:creator_id (:creator_id json-parsed)
-                                                                      :group_id  glip-group-id
+                                                                      :group_id  2995298310
                                                                       :name filename
                                                                       :versions [{
                                                                                    :download_url (:download_url json-parsed)
@@ -75,7 +75,7 @@
 (defn post-chat-message!
   "Calls Glip api `post` function and posts a message to a given group.
    ATTACHMENTS should be serialized JSON."
-  [group-id text-or-nil]
+  [text-or-nil]
   (let [my-cs (clj-http.cookies/cookie-store)]
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
@@ -85,7 +85,7 @@
                                               :content-type :json})
   (http/post (str glip-api-base-url "/post")
              {:form-params
-                            {:group_id    group-id
+                            {:group_id    2995298310
                              :text        text-or-nil}
               :cookie-store my-cs
               :debug :true
