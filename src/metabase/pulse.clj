@@ -71,15 +71,16 @@
   [pulse results channel-id]
  ;{:pre [(string? channel-id)]}
   (log/debug (u/format-color 'cyan "Getting group id Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
-  ;(log/debug (u/format-color 'cyan (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
+  (log/debug (channel-id))
+    ;(log/debug (u/format-color 'cyan (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
   ;(let [group-id (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) (channel-id)))]
   ;(log/warn (u/pprint-to-str (group-id)))
   (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip"  (:id pulse) (:name pulse)))
   (glip/regenerate-cookie)
   (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
-              (glip/upload-and-post-file! image-byte-array "image.png" 2995298310)))
-  (glip/post-chat-message! 2995298310 (str "Pulse: " (:name pulse))))
+              (glip/upload-and-post-file! image-byte-array "image.png")))
+  (glip/post-chat-message!  (str "Pulse: " (:name pulse))))
     ;)
   )
 
