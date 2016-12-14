@@ -78,7 +78,12 @@
                 {:title      card-name
                :title_link (urls/card-url card-id)
                :fallback   card-name}))
-  (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse)))))
+  (http/post (str glip-api-base-url "/post")
+              {:form-params
+                             {:group_id    channel-id
+                              :text        (str "Pulse: " (:name pulse))}
+               :cookie-store cs
+               :content-type :json})))
 
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
