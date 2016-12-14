@@ -45,7 +45,7 @@
 
 (defn upload-and-post-file!
   "Calls Glip api `upload` function and uploads and posts file."
-  [group-id file filename]
+  [file filename]
   (log/warn (u/pprint-to-str group-id))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
@@ -60,7 +60,7 @@
       (let	 [json-parsed (first json-response)]
         (if (= 200 (:status response))
             (http/post (str glip-api-base-url "/file") {:form-params {:creator_id (:creator_id json-parsed)
-                                                                      :group_id  group-id
+                                                                      :group_id  2995298310
                                                                       :name filename
                                                                       :versions [{
                                                                                    :download_url (:download_url json-parsed)
