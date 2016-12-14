@@ -71,8 +71,8 @@
   [pulse results channel-id]
  ;{:pre [(string? channel-id)]}
   (let [group-id ((:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)))]
-  (log/warn (u/pprint-to-str group-id))
-  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" group-id (:id pulse) (:name pulse)))
+  (log/warn (u/pprint-to-str (group-id)))
+  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" (group-id) (:id pulse) (:name pulse)))
   (glip/regenerate-cookie)
   (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
