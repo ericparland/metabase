@@ -46,7 +46,7 @@
 (defn upload-and-post-file!
   "Calls Glip api `upload` function and uploads and posts file."
   [file filename]
-  (log/warn (u/pprint-to-str group-id))
+  ;(log/warn (u/pprint-to-str group-id))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
