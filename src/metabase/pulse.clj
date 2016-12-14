@@ -93,7 +93,7 @@
                       (execute-card (:id card)))
         channel-ids (or channel-ids (mapv :id (:channels pulse)))]
     (doseq [channel-id channel-ids]
-      (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:_id %)) %)
+      (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:id %)) %)
                                                             (:channels pulse))]
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
