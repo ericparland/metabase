@@ -53,7 +53,7 @@
                                               :cookie-store cs
                                               :content-type :json})
   (let [response (http/post (str glip-api-base-url "/upload") {:multipart [ {:name "file",     :content file}
-                                                                            {:name "filename", :content (apply str (filename))}]
+                                                                            {:name "filename", :content filename}]
                                                                :cookie-store cs
                                                                :debug :true})]
     (let [json-response  (json/parse-string  (:body response) keyword)]
