@@ -17,6 +17,7 @@
             [metabase.pulse :as p]
             [metabase.pulse.render :as render]
             [metabase.util :as u]
+            [clojure.tools.logging :as log]
             [metabase.util.schema :as su]))
 
 
@@ -141,6 +142,7 @@
    cards    (su/non-empty [su/Map])
    channels (su/non-empty [su/Map])}
   (check-card-read-permissions cards)
+  (log/warn (u/pprint-to-str 'red str (body)))
   (p/send-pulse! body)
   {:ok true})
 
