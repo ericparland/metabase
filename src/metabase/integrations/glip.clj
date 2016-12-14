@@ -88,6 +88,7 @@
                             {:group_id    group-id
                              :text        text-or-nil}
               :cookie-store cs
+              :debug :true
               :content-type :json}))
 
 

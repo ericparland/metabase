@@ -12,8 +12,6 @@
             [metabase.query-processor :as qp]
             [metabase.util.urls :as urls]
             [metabase.util :as u]
-            [cheshire.core :as json]
-            [clj-http.client :as http]
             [metabase.util.urls :as urls]))
 
 
@@ -80,12 +78,7 @@
                 {:title      card-name
                :title_link (urls/card-url card-id)
                :fallback   card-name}))
-  (http/post (str glip-api-base-url "/post")
-              {:form-params
-                             {:group_id    channel-id
-                              :text        (str "Pulse: " (:name pulse))}
-               :cookie-store cs
-               :content-type :json})))
+  (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse)))))
 
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
