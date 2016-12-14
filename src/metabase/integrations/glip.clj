@@ -29,9 +29,8 @@
                                                              :email (glip-login)
                                                              :password (glip-password)}
                                               :cookie-store cs
-                                              :debug :true
                                               :content-type :json})
-  (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
+  (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs})) keyword)))
 
 ;;TODO: rewrite
 ;(def ^{:arglists '([& {:as args}])} users-list
