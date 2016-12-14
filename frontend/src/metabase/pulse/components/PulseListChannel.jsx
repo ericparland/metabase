@@ -56,7 +56,10 @@ export default class PulseListChannel extends Component {
             channelIcon = "slack";
             channelVerb = "Slack'd";
             channelTarget = channel.details.channel;
-        }
+        } else if (channel.channel_type === "glip") {
+                      channelIcon = "glip";
+                      channelVerb = "Glip'd";
+                      channelTarget = channel.details.channel;}
 
         return (
             <div className="h4 text-grey-4 py2 flex align-center">
