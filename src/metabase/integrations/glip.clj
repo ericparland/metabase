@@ -24,13 +24,13 @@
 ;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
-  (log/warn (u/pprint-to-str 'red (str glip-login glip-password)))
+  (log/warn (u/pprint-to-str 'red (str (glip-login) (glip-password))))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
                                               :cookie-store cs
                                               :content-type :json})
-  (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs})) keyword)))
+  (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
 
 ;;TODO: rewrite
 ;(def ^{:arglists '([& {:as args}])} users-list
