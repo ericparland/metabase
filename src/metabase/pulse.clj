@@ -12,6 +12,8 @@
             [metabase.query-processor :as qp]
             [metabase.util.urls :as urls]
             [metabase.util :as u]
+            [cheshire.core :as json]
+            [clj-http.client :as http]
             [metabase.util.urls :as urls]))
 
 
