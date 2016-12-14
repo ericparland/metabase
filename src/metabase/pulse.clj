@@ -95,7 +95,7 @@
     (doseq [channel-id channel-ids]
       (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:id %)) %)
                                                             (:channels pulse))]
-        (log/warn (u/pprint-to-str (details)))
+        (log/warn (u/pprint-to-str details))
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
           :slack (send-slack-pulse! pulse results (:channel details))
