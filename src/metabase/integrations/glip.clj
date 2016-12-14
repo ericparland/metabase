@@ -76,10 +76,12 @@
   "Calls Glip api `post` function and posts a message to a given group.
    ATTACHMENTS should be serialized JSON."
   [group-id text-or-nil]
+
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
                                               :cookie-store cs
+                                              :debug :true
                                               :content-type :json})
   (http/post (str glip-api-base-url "/post")
              {:form-params
