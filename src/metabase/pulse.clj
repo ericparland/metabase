@@ -100,6 +100,6 @@
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
           :slack (send-slack-pulse! pulse results (:channel details))
-          :glip  (send-glip-pulse! pulse results (:channel details)))))))
+          :glip  (send-glip-pulse! pulse results (:group details)))))))
 
 
