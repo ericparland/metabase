@@ -91,9 +91,9 @@
   {:pre [(map? pulse) (every? map? cards) (every? :id cards)]}
   (let [results     (for [card cards]
                       (execute-card (:id card)))
-        channel-ids (or channel-ids (mapv :_id (:channels pulse)))]
+        channel-ids (or channel-ids (mapv :id (:channels pulse)))]
     (doseq [channel-id channel-ids]
-      (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:id %)) %)
+      (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:_id %)) %)
                                                             (:channels pulse))]
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
