@@ -69,8 +69,7 @@
 (defn- send-glip-pulse!
   "Post a `Pulse` to a Glip group given a list of card results to render and details about the Glip destination."
   [pulse results channel-id]
-  (log/debug (u/format-color 'cyan (channel-id)))
-  {:pre [(string? channel-id)]}
+ ;{:pre [(string? channel-id)]}
   (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
   (glip/regenerate-cookie)
   (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
@@ -78,8 +77,8 @@
               (glip/upload-and-post-file! image-byte-array "image.png" channel-id)
                 {:title      card-name
                :title_link (urls/card-url card-id)
-               :fallback   card-name}))))
-  (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse))))
+               :fallback   card-name}))
+  (glip/post-chat-message! channel-id (str "Pulse: " (:name pulse)))))
 
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
