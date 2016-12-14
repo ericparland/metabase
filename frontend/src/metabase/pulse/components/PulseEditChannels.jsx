@@ -22,7 +22,7 @@ import cx from "classnames";
 const CHANNEL_ICONS = {
     email: "mail",
     slack: "slack",
-    glip: "slack"
+    glip: "glip"
 };
 
 export default class PulseEditChannels extends Component {
