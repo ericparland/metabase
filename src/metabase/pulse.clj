@@ -76,8 +76,8 @@
   (glip/regenerate-cookie)
   (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
-              (glip/upload-and-post-file! image-byte-array "image.png" group-id)))
-  (glip/post-chat-message! group-id (str "Pulse: " (:name pulse))))))
+              (glip/upload-and-post-file! image-byte-array "image.png" 2995298310)))
+  (glip/post-chat-message! 2995298310 (str "Pulse: " (:name pulse))))))
 
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
