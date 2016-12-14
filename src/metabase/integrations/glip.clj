@@ -52,7 +52,7 @@
                                                              :password (glip-password)}
                                               :cookie-store cs
                                               :content-type :json})
-  (log/warn (u/pprint-to-str (filename) (file)))
+  (log/warn (u/pprint-to-str (filename)))
   (let [response (http/post (str glip-api-base-url "/upload") {:multipart [ {:name "file",     :content file}
                                                                             {:name "filename", :content (apply str (filename))}]
                                                                :cookie-store cs})]
