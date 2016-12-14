@@ -24,7 +24,7 @@
 ;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
-  (log/warn (u/pprint-to-str 'red (str (glip-login) (glip-password))))
+  ;(log/warn (u/pprint-to-str 'red (str (glip-login) (glip-password))))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
@@ -45,8 +45,8 @@
 
 (defn upload-and-post-file!
   "Calls Glip api `upload` function and uploads and posts file."
-  [file filename]
-  ;(log/warn (u/pprint-to-str group-id))
+  [group-id file filename]
+  (log/warn (u/pprint-to-str group-id))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
@@ -60,7 +60,7 @@
       (let	 [json-parsed (first json-response)]
         (if (= 200 (:status response))
             (http/post (str glip-api-base-url "/file") {:form-params {:creator_id (:creator_id json-parsed)
-                                                                      :group_id  2995298310
+                                                                      :group_id  group-id
                                                                       :name filename
                                                                       :versions [{
                                                                                    :download_url (:download_url json-parsed)
