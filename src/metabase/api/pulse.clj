@@ -142,7 +142,7 @@
    cards    (su/non-empty [su/Map])
    channels (su/non-empty [su/Map])}
   (check-card-read-permissions cards)
-  (log/warn (u/pprint-to-str 'red str (body)))
+  (log/warn (u/pprint-to-str 'red (body)))
   (p/send-pulse! body)
   {:ok true})
 
