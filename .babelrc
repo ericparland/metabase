@@ -1,0 +1,9 @@
+{
+  "plugins": ["transform-flow-strip-types", "add-react-displayname", "transform-decorators-legacy"],
+  "presets": ["es2015", "stage-0", "react"],
+  "env": {
+    "development": {
+      "presets": []
+    }
+  }
+}
