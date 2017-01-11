@@ -495,6 +495,12 @@
      ~@body
      ~'<>))
 
+(def ^String ^{:arglists '([emoji-string])} emoji
+  "Returns the EMOJI-STRING passed in if emoji in logs are enabled, otherwise always returns an empty string."
+  (if (config/config-bool :mb-emoji-in-logs)
+    identity
+    (constantly "")))
+
 (def ^String ^{:style/indent 2, :arglists '([color-symb x] [color-symb format-str & args])}
   format-color
   "Like `format`, but uses a function in `colorize.core` to colorize the output.
@@ -554,7 +560,7 @@
         (str "["
              (s/join (repeat filleds "*"))
              (s/join (repeat blanks "·"))
-             (format "] %s  %3.0f%%" (percent-done->emoji percent-done) (* percent-done 100.0)))))))
+             (format "] %s  %3.0f%%" (emoji (percent-done->emoji percent-done)) (* percent-done 100.0)))))))
 
 (defn filtered-stacktrace
   "Get the stack trace associated with E and return it as a vector with non-metabase frames filtered out."
@@ -664,13 +670,16 @@
 
 (defn slugify
   "Return a version of `String` S appropriate for use as a URL slug.
-   Downcase the name and replace non-alphanumeric characters with underscores."
-  ^String [s]
-  (when (seq s)
-    (s/join (for [c (s/lower-case (name s))]
-              (if (contains? slugify-valid-chars c)
-                c
-                \_)))))
+   Downcase the name and replace non-alphanumeric characters with underscores.
+   Optionally specify MAX-LENGTH which will truncate the slug after that many characters."
+  (^String [s]
+   (when (seq s)
+     (s/join (for [c (s/lower-case (name s))]
+               (if (contains? slugify-valid-chars c)
+                 c
+                 \_)))))
+  (^String [s max-length]
+   (s/join (take max-length (slugify s)))))
 
 (defn do-with-auto-retries
   "Execute F, a function that takes no arguments, and return the results.

@@ -119,7 +119,7 @@ export default class SettingsSlackForm extends Component {
 
         return formErrors;
     }
-//TODO: add glip!
+
     updateSlackSettings(e) {
         e.preventDefault();
 

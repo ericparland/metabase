@@ -11,7 +11,10 @@ export const ActivityApi = {
 };
 
 export const CardApi = {
-    list:                        GET("/api/card"),
+    list:                        GET("/api/card", (cards, { data }) =>
+                                    // support for the "q" query param until backend implements it
+                                    cards.filter(card => !data.q || card.name.toLowerCase().indexOf(data.q.toLowerCase()) >= 0)
+                                 ),
     create:                     POST("/api/card"),
     get:                         GET("/api/card/:cardId"),
     update:                      PUT("/api/card/:id"),
@@ -34,6 +37,16 @@ export const DashboardApi = {
     reposition_cards:            PUT("/api/dashboard/:dashId/cards"),
 };
 
+export const CollectionsApi = {
+    list:                        GET("/api/collection"),//  () => []),
+    create:                     POST("/api/collection"),
+    get:                         GET("/api/collection/:id"),
+    update:                      PUT("/api/collection/:id"),
+    delete:                   DELETE("/api/collection/:id"),
+    graph:                       GET("/api/collection/graph"),
+    updateGraph:                 PUT("/api/collection/graph"),
+};
+
 export const EmailApi = {
     updateSettings:              PUT("/api/email"),
     sendTest:                   POST("/api/email/test"),
@@ -46,7 +59,6 @@ export const SlackApi = {
 export const GlipApi = {
     updateSettings:              PUT("/api/glip/settings"),
 };
-
 
 export const MetabaseApi = {
     db_list:                     GET("/api/database"),
@@ -186,3 +198,5 @@ export const UserApi = {
 export const UtilApi = {
     password_check:             POST("/api/util/password_check"),
 };
+
+global.services = exports;

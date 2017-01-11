@@ -21,18 +21,18 @@
 (defn- handle-response [{:keys [status body]}]
   (let [body (json/parse-string body keyword)]
     (if (and (= 200 status) (:ok body))
-        body
-        (let [error (if (= (:error body) "invalid_auth")
-                        {:errors {:slack-token "Invalid token"}}
-                        {:message (str "Slack API error: " (:error body)), :response body})]
-          (log/warn (u/pprint-to-str 'red error))
-          (throw (ex-info (:message error) error))))))
+      body
+      (let [error (if (= (:error body) "invalid_auth")
+                    {:errors {:slack-token "Invalid token"}}
+                    {:message (str "Slack API error: " (:error body)), :response body})]
+        (log/warn (u/pprint-to-str 'red error))
+        (throw (ex-info (:message error) error))))))
 
 (defn- do-slack-request [request-fn params-key endpoint & {:keys [token], :as params, :or {token (slack-token)}}]
   (when token
-        (handle-response (request-fn (str slack-api-base-url "/" (name endpoint)) {params-key      (assoc params :token token)
-                                                                                   :conn-timeout   1000
-                                                                                   :socket-timeout 1000}))))
+    (handle-response (request-fn (str slack-api-base-url "/" (name endpoint)) {params-key      (assoc params :token token)
+                                                                              :conn-timeout   1000
+                                                                              :socket-timeout 1000}))))
 
 (def ^{:arglists '([endpoint & {:as params}]), :style/indent 1} GET  "Make a GET request to the Slack API."  (partial do-slack-request http/get  :query-params))
 (def ^{:arglists '([endpoint & {:as params}]), :style/indent 1} POST "Make a POST request to the Slack API." (partial do-slack-request http/post :form-params))
@@ -58,17 +58,17 @@
   []
   (when-let [{files-channel :channel, :as response} (create-channel! files-channel-name)]
     (when-not files-channel
-              (log/error (u/pprint-to-str 'red response))
-              (throw (ex-info "Error creating Slack channel for Metabase file uploads" response)))
+      (log/error (u/pprint-to-str 'red response))
+      (throw (ex-info "Error creating Slack channel for Metabase file uploads" response)))
     ;; Right after creating our files channel, archive it. This is because we don't need users to see it.
     (u/prog1 files-channel
-             (archive-channel! (:id <>)))))
+      (archive-channel! (:id <>)))))
 
 (defn- files-channel
   "Return the `metabase_files` channel (as a map) if it exists."
   []
   (some (fn [channel] (when (= (:name channel) files-channel-name)
-                            channel))
+                        channel))
         (channels-list :exclude_archived 0)))
 
 (defn get-or-create-files-channel!
@@ -94,9 +94,9 @@
                                                                                   {:name "channels", :content channel-ids-str}]
                                                                       :as        :json})]
     (if (= 200 (:status response))
-        (u/prog1 (get-in (:body response) [:file :url_private])
-                 (log/debug "Uploaded image" <>))
-        (log/warn "Error uploading file to Slack:" (u/pprint-to-str response)))))
+      (u/prog1 (get-in (:body response) [:file :url_private])
+        (log/debug "Uploaded image" <>))
+      (log/warn "Error uploading file to Slack:" (u/pprint-to-str response)))))
 
 (defn post-chat-message!
   "Calls Slack api `chat.postMessage` function and posts a message to a given channel.
@@ -105,12 +105,12 @@
   {:pre [(string? channel-id)]}
   ;; TODO: it would be nice to have an emoji or icon image to use here
   (POST :chat.postMessage
-        :channel     channel-id
-        :username    "MetaBot"
-        :icon_url    "http://static.metabase.com/metabot_slack_avatar_whitebg.png"
-        :text        text-or-nil
-        :attachments (when (seq attachments)
-                           (json/generate-string attachments))))
+    :channel     channel-id
+    :username    "MetaBot"
+    :icon_url    "http://static.metabase.com/metabot_slack_avatar_whitebg.png"
+    :text        text-or-nil
+    :attachments (when (seq attachments)
+                   (json/generate-string attachments))))
 
 (def ^{:arglists '([& {:as params}])} websocket-url
   "Return a new WebSocket URL for [Slack's Real Time Messaging API](https://api.slack.com/rtm)

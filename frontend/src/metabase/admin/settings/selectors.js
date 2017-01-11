@@ -136,14 +136,14 @@ const SECTIONS = [
             },
         ]
     },
-        {
+    {
             name: "Glip",
             settings: [
                 {
                     key: "glip-login",
                     display_name: "Glip email login",
                     description: "",
-                    placeholder: "metabase@yourcompany.com",
+                    placeholder: "something@ringcentral.com",
                     type: "string",
                     required: true,
                     validations: [["email", "That's not a valid email address"]],

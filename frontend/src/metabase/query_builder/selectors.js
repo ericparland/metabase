@@ -7,7 +7,7 @@ import { getTemplateTags } from "metabase/meta/Card";
 import { isCardDirty, isCardRunnable } from "metabase/lib/card";
 import { parseFieldTarget } from "metabase/lib/query_time";
 import { isPK } from "metabase/lib/types";
-import { applyParameters } from "metabase/meta/Card";
+import Query from "metabase/lib/query";
 
 export const uiControls                = state => state.qb.uiControls;
 
@@ -94,9 +94,7 @@ export const isObjectDetail = createSelector(
 	    if (dataset_query.query &&
 	            dataset_query.query.source_table &&
 	            dataset_query.query.filter &&
-	            dataset_query.query.aggregation &&
-	            dataset_query.query.aggregation.length > 0 &&
-	            dataset_query.query.aggregation[0] === "rows" &&
+				Query.isBareRows(dataset_query.query) &&
 	            data.rows &&
 	            data.rows.length === 1) {
 
@@ -111,8 +109,7 @@ export const isObjectDetail = createSelector(
 
 	        // now check that we have a filter clause w/ '=' filter on PK column
 	        if (pkField !== undefined) {
-	            for (var j=0; j < dataset_query.query.filter.length; j++) {
-	                let filter = dataset_query.query.filter[j];
+	            for (const filter of Query.getFilters(dataset_query.query)) {
 	                if (Array.isArray(filter) &&
 	                        filter.length === 3 &&
 	                        filter[0] === "=" &&
@@ -152,12 +149,6 @@ export const getParameters = createSelector(
 	[getImplicitParameters],
 	(implicitParameters) => implicitParameters
 );
-
-export const getFullDatasetQuery = createSelector(
-	[card, getParameters, parameterValues],
-	(card, parameters, parameterValues) =>
-		card && applyParameters(card, parameters, parameterValues)
-)
 
 export const getIsRunnable = createSelector(
 	[card, tableMetadata],

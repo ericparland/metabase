@@ -99,7 +99,7 @@
                        chan-types
                        ;; if we have Slack enabled build a dynamic list of channels/users
                        (let [glip-groups  (for [channel  (glip/groups-list)]
-                                              (str (:set_abbreviation channel)))]
+                                            (str (:set_abbreviation channel)))]
                          (assoc-in chan-types [:glip :fields 0 :options] glip-groups)))}))
 
 

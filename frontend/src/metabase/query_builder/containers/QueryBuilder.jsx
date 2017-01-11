@@ -35,7 +35,6 @@ import {
     getParameters,
     getDatabaseFields,
     getSampleDatasetId,
-    getFullDatasetQuery,
     getNativeDatabases,
     getIsRunnable,
 } from "../selectors";
@@ -89,7 +88,6 @@ const mapStateToProps = (state, props) => {
         parameters:                getParameters(state),
         databaseFields:            getDatabaseFields(state),
         sampleDatasetId:           getSampleDatasetId(state),
-        fullDatasetQuery:          getFullDatasetQuery(state),
 
         isShowingDataReference:    state.qb.uiControls.isShowingDataReference,
         isShowingTutorial:         state.qb.uiControls.isShowingTutorial,
@@ -223,7 +221,7 @@ export default class QueryBuilder extends Component {
 
                 <div className={cx("SideDrawer", { "SideDrawer--show": showDrawer })}>
                     { uiControls.isShowingDataReference &&
-                        <DataReference {...this.props} closeFn={() => this.props.toggleDataReference()} />
+                        <DataReference {...this.props} onClose={() => this.props.toggleDataReference()} />
                     }
 
                     { uiControls.isShowingTemplateTagsEditor &&

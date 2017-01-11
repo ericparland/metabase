@@ -229,8 +229,8 @@ export default class PulseEditChannels extends Component {
         // Default to show the default channels until full formInput is loaded
         let channels = formInput.channels || {
             email: { name: "Email", type: "email" },
-            glip: { name: "Glip", type: "glip" },
-            slack: { name: "Slack", type: "slack" }
+            slack: { name: "Slack", type: "slack" },
+            glip: { name: "Glip", type: "glip" }
         };
         return (
             <div className="py1 mb4">

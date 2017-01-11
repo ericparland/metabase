@@ -21,7 +21,7 @@
   "General maximum number of rows to return from an API query."
   10000)
 
-(def ^:const query-constraints
+(def ^:const default-query-constraints
   "Default map of constraints that we apply on dataset queries executed by the api."
   {:max-results           max-results
    :max-results-bare-rows max-results-bare-rows})
@@ -31,7 +31,7 @@
   [:as {{:keys [database] :as body} :body}]
   (read-check Database database)
   ;; add sensible constraints for results limits on our query
-  (let [query (assoc body :constraints query-constraints)]
+  (let [query (assoc body :constraints default-query-constraints)]
     (qp/dataset-query query {:executed-by *current-user-id*})))
 
 (defendpoint POST "/duration"
@@ -39,7 +39,7 @@
   [:as {{:keys [database] :as query} :body}]
   (read-check Database database)
   ;; add sensible constraints for results limits on our query
-  (let [query         (assoc query :constraints query-constraints)
+  (let [query         (assoc query :constraints default-query-constraints)
         running-times (db/select-field :running_time QueryExecution
                         :query_hash (hash query)
                         {:order-by [[:started_at :desc]]
@@ -65,13 +65,35 @@
     {:status 500
      :body   (:error response)}))
 
+(defn as-json
+  "Return a JSON response containing the RESULTS of a query."
+  {:arglists '([results])}
+  [{{:keys [columns rows]} :data, :keys [status], :as response}]
+  (if (= status :completed)
+    ;; successful query, send CSV file
+    {:status  200
+     :body    (for [row rows]
+                (zipmap columns row))
+     :headers {"Content-Disposition" (str "attachment; filename=\"query_result_" (u/date->iso-8601) ".json\"")}}
+    ;; failed query, send error message
+    {:status 500
+     :body   {:error (:error response)}}))
+
 (defendpoint POST "/csv"
   "Execute a query and download the result data as a CSV file."
   [query]
   {query su/JSONString}
   (let [query (json/parse-string query keyword)]
     (read-check Database (:database query))
-    (as-csv (qp/dataset-query query {:executed-by *current-user-id*}))))
+    (as-csv (qp/dataset-query (dissoc query :constraints) {:executed-by *current-user-id*}))))
+
+(defendpoint POST "/json"
+  "Execute a query and download the result data as a JSON file."
+  [query]
+  {query su/JSONString}
+  (let [query (json/parse-string query keyword)]
+    (read-check Database (:database query))
+    (as-json (qp/dataset-query (dissoc query :constraints) {:executed-by *current-user-id*}))))
 
 
 (define-routes)

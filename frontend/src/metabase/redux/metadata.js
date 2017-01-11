@@ -3,12 +3,11 @@ import {
     combineReducers,
     createThunkAction,
     resourceListToMap,
-    cleanResource,
     fetchData,
     updateData,
 } from "metabase/lib/redux";
 
-import { normalize, Schema, arrayOf } from 'normalizr';
+import { normalize, schema } from "normalizr";
 import i from "icepick";
 import _ from "underscore";
 
@@ -16,18 +15,12 @@ import { augmentDatabase, augmentTable } from "metabase/lib/table";
 
 import { MetabaseApi, MetricApi, SegmentApi, RevisionsApi } from "metabase/services";
 
-const database_list = new Schema('database_list');
-const database = new Schema('databases');
-const table = new Schema('tables');
-const field = new Schema('fields');
-database_list.define({
-    databases: arrayOf(database)
+const field = new schema.Entity('fields');
+const table = new schema.Entity('tables', {
+    fields: [field]
 });
-database.define({
-    tables: arrayOf(table)
-});
-table.define({
-    fields: arrayOf(field)
+const database = new schema.Entity('databases', {
+    tables: [table]
 });
 
 const FETCH_METRICS = "metabase/metadata/FETCH_METRICS";
@@ -60,11 +53,10 @@ export const updateMetric = createThunkAction(UPDATE_METRIC, function(metric) {
         const dependentRequestStatePaths = [['metadata', 'revisions', 'metric', metric.id]];
         const putData = async () => {
             const updatedMetric = await MetricApi.update(metric);
-            const cleanMetric = cleanResource(updatedMetric);
             const existingMetrics = i.getIn(getState(), existingStatePath);
             const existingMetric = existingMetrics[metric.id];
 
-            const mergedMetric = {...existingMetric, ...cleanMetric};
+            const mergedMetric = {...existingMetric, ...updatedMetric};
 
             return i.assoc(existingMetrics, mergedMetric.id, mergedMetric);
         };
@@ -136,11 +128,10 @@ export const updateSegment = createThunkAction(UPDATE_SEGMENT, function(segment)
         const dependentRequestStatePaths = [['metadata', 'revisions', 'segment', segment.id]];
         const putData = async () => {
             const updatedSegment = await SegmentApi.update(segment);
-            const cleanSegment = cleanResource(updatedSegment);
             const existingSegments = i.getIn(getState(), existingStatePath);
             const existingSegment = existingSegments[segment.id];
 
-            const mergedSegment = {...existingSegment, ...cleanSegment};
+            const mergedSegment = {...existingSegment, ...updatedSegment};
 
             return i.assoc(existingSegments, mergedSegment.id, mergedSegment);
         };
@@ -221,11 +212,10 @@ export const updateDatabase = createThunkAction(UPDATE_DATABASE, function(databa
             const slimDatabase = _.omit(database, "tables", "tables_lookup");
             const updatedDatabase = await MetabaseApi.db_update(slimDatabase);
 
-            const cleanDatabase = cleanResource(updatedDatabase);
             const existingDatabases = i.getIn(getState(), existingStatePath);
             const existingDatabase = existingDatabases[database.id];
 
-            const mergedDatabase = {...existingDatabase, ...cleanDatabase};
+            const mergedDatabase = {...existingDatabase, ...updatedDatabase};
 
             return i.assoc(existingDatabases, mergedDatabase.id, mergedDatabase);
         };
@@ -257,11 +247,10 @@ export const updateTable = createThunkAction(UPDATE_TABLE, function(table) {
 
             const updatedTable = await MetabaseApi.table_update(slimTable);
 
-            const cleanTable = cleanResource(updatedTable);
             const existingTables = i.getIn(getState(), existingStatePath);
             const existingTable = existingTables[table.id];
 
-            const mergedTable = {...existingTable, ...cleanTable};
+            const mergedTable = {...existingTable, ...updatedTable};
 
             return i.assoc(existingTables, mergedTable.id, mergedTable);
         };
@@ -342,11 +331,10 @@ export const updateField = createThunkAction(UPDATE_FIELD, function(field) {
             const slimField = _.omit(field, "operators_lookup");
 
             const fieldMetadata = await MetabaseApi.field_update(slimField);
-            const cleanField = cleanResource(fieldMetadata);
             const existingFields = i.getIn(getState(), existingStatePath);
             const existingField = existingFields[field.id];
 
-            const mergedField = {...existingField, ...cleanField};
+            const mergedField = {...existingField, ...fieldMetadata};
 
             return i.assoc(existingFields, mergedField.id, mergedField);
         };
