@@ -73,7 +73,7 @@
   (log/debug (u/format-color 'cyan "Getting group id Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
   (log/debug (pr-str channel-id))
   (log/debug (u/format-color 'cyan (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
-  (let [group-id (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) (channel-id)))]
+  ;(let [group-id (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) (channel-id)))]
   ;(log/warn (u/pprint-to-str (group-id)))
   (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip"  (:id pulse) (:name pulse)))
   (glip/regenerate-cookie)
