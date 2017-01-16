@@ -54,6 +54,7 @@
                 :image_url  slack-file-url
                 :fallback   card-name})))))
 
+
 (defn- send-slack-pulse!
   "Post a `Pulse` to a slack channel given a list of card results to render and details about the slack destination."
   [pulse results channel-id]
@@ -63,21 +64,26 @@
     (slack/post-chat-message! channel-id
                               (str "Pulse: " (:name pulse))
                               attachments)))
+
 ;TODO: dopilit'!
 (defn- send-glip-pulse!
   "Post a `Pulse` to a Glip group given a list of card results to render and details about the Glip destination."
   [pulse results channel-id]
-  ;{:pre [(string? channel-id)]}
+ ;{:pre [(string? channel-id)]}
   (log/debug (u/format-color 'cyan "Getting group id Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
-  (log/debug (u/format-color 'cyan (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
-  (let [group-id ((:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)))]
-    (log/warn (u/pprint-to-str (group-id)))
-    (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip" (group-id) (:id pulse) (:name pulse)))
-    (glip/regenerate-cookie)
-    (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
-             (let [image-byte-array (render/render-pulse-card-to-png card result)]
-               (glip/upload-and-post-file! image-byte-array "image.png" 2995298310)))
-           (glip/post-chat-message! 2995298310 (str "Pulse: " (:name pulse))))))
+  (log/debug (pr-str channel-id))
+    ;(log/debug (u/format-color 'cyan (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
+  ;(let [group-id (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) (channel-id)))]
+  ;(log/warn (u/pprint-to-str (group-id)))
+  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip"  (:id pulse) (:name pulse)))
+  (glip/regenerate-cookie)
+  (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
+            (let [image-byte-array (render/render-pulse-card-to-png card result)]
+              (glip/upload-and-post-file! (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)) image-byte-array "image.png")
+              (glip/post-chat-message! (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)) (str "Pulse: " (:name pulse)))
+         )
+    )
+  ))
 
 (defn send-pulse!
   "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
@@ -94,7 +100,10 @@
     (doseq [channel-id channel-ids]
       (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:id %)) %)
                                                             (:channels pulse))]
+        (log/warn (u/pprint-to-str details))
         (condp = (keyword channel_type)
           :email (send-email-pulse! pulse results recipients)
           :slack (send-slack-pulse! pulse results (:channel details))
           :glip  (send-glip-pulse! pulse results (:group details)))))))
+
+
