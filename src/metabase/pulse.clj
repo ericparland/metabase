@@ -80,7 +80,6 @@
   (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
             (let [image-byte-array (render/render-pulse-card-to-png card result)]
               (log/warn "Rendered card: " (u/pprint-to-str image-byte-array))
-              (log/warn "Rendered card: " (u/pprint-to-str (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
               (glip/upload-and-post-file! (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)) image-byte-array "image.png")
               (glip/post-chat-message! (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)) (str "Pulse: " (:name pulse)))
          )
