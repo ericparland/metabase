@@ -26,7 +26,8 @@
    ;; Other Application Settings
    :mb-password-complexity "normal"
    ;:mb-password-length "8"
-   :mb-version-info-url "http://static.metabase.com/version-info.json"
+;   :mb-version-info-url "http://static.metabase.com/version-info.json"
+   :mb-version-info-url "http://localhost/version-info.json"
    :max-session-age "20160"                     ; session length in minutes (14 days)
    :mb-colorize-logs "true"
    :mb-emoji-in-logs "true"})
