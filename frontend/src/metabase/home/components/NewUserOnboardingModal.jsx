@@ -45,10 +45,10 @@ export default class NewUserOnboardingModal extends Component {
                 { step === 1 ?
                     <div className="bordered rounded shadowed">
                         <div className="pl4 pr4 pt4 pb1 border-bottom">
-                            <h2>{user.first_name}, welcome to Metabase!</h2>
+                            <h2>{user.first_name}, welcome to RC Data Tool!</h2>
                             <h2>Analytics you can use by yourself.</h2>
 
-                            <p>Metabase lets you find answers to your questions from data your company already has.</p>
+                            <p>RC Data Tool lets you find answers to your questions from data your company already has.</p>
 
                             <p>It’s easy to use, because it’s designed so you don’t need any analytics knowledge to get started.</p>
                         </div>
@@ -78,7 +78,7 @@ export default class NewUserOnboardingModal extends Component {
                         <div className="pl4 pr4 pt4 pb1 border-bottom">
                             <h2>Let's try asking a question!</h2>
 
-                            <p>We'll take a quick look at the Query Builder, the main tool you'll use in Metabase to ask questions.</p>
+                            <p>We'll take a quick look at the Query Builder, the main tool you'll use in RC Data Tool to ask questions.</p>
                         </div>
                         <div className="px4 py2 text-grey-2 flex align-center">
                             {this.renderStep()}
