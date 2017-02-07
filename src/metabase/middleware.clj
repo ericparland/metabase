@@ -151,13 +151,13 @@
                                                       :script-src  ["'unsafe-inline'"
                                                                     "'unsafe-eval'"
                                                                     "'self'"
-                                                                    ;"https://maps.google.com"
-                                                                    ;"https://apis.google.com"
-                                                                    ;"https://www.google-analytics.com" ; Safari requires the protocol
-                                                                    ;"https://*.googleapis.com"
-                                                                    ;"*.gstatic.com"
-                                                                    ;"js.intercomcdn.com"
-                                                                    ;"*.intercom.io"
+                                                                    "https://maps.google.com"
+                                                                    "https://apis.google.com"
+                                                                    "https://www.google-analytics.com" ; Safari requires the protocol
+                                                                    "https://*.googleapis.com"
+                                                                    "*.gstatic.com"
+                                                                    "js.intercomcdn.com"
+                                                                    "*.intercom.io"
                                                                     (when config/is-dev?
                                                                       "localhost:8080")]
                                                       :frame-src   ["https://accounts.google.com"] ; TODO - double check that we actually need this for Google Auth
@@ -172,8 +172,8 @@
                                                       :img-src     ["*"
                                                                     "self data:"]
                                                       :connect-src ["'self'"
-                                                                    ;"metabase.us10.list-manage.com"
-                                                                    ;"*.intercom.io" TODO: Maybe we'll add Glip there?
+                                                                    "metabase.us10.list-manage.com"
+                                                                    "*.intercom.io" ;TODO: Maybe we'll add Glip there?
                                                                     "wss://*.intercom.io" ; allow websockets as well
                                                                     (when config/is-dev?
                                                                       "localhost:8080 ws://localhost:8080")]}]

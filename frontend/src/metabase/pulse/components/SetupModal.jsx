@@ -17,7 +17,7 @@ export default class SetupModal extends Component {
                 onClose={this.props.onClose}
             >
                 <div className="mx4 px4 pb4 text-centered">
-                    <h2>To send pulses, an admin needs to set up email or Slack integration.</h2>
+                    <h2>To send pulses, an admin needs to set up email or Glip integration.</h2>
                     <SetupMessage user={this.props.user} />
                 </div>
             </ModalContent>

@@ -73,7 +73,7 @@
    :custom_geojson        (setting/get :custom-geojson)
    :email_configured      ((resolve 'metabase.email/email-configured?))
    :engines               ((resolve 'metabase.driver/available-drivers))
-   :ga_code               "UA-60817802-1"
+   :ga_code               "UA-91542416-1"
    :google_auth_client_id (setting/get :google-auth-client-id)
    :has_sample_dataset    (db/exists? 'Database, :is_sample true)
    :map_tile_server_url   (map-tile-server-url)

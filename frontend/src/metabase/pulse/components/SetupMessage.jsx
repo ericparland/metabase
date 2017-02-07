@@ -13,7 +13,7 @@ export default class SetupMessage extends Component {
     };
 
     static defaultProps = {
-        channels: ["Email", "Slack", "Glip"]
+        channels: ["Email", "Glip"]
     }
 
     render() {
