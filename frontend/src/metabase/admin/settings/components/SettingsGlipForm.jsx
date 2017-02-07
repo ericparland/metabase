@@ -184,14 +184,7 @@ export default class SettingsGlipForm extends Component {
             <form noValidate>
                 <div className="px2" style={{maxWidth: "585px"}}>
                     <h1>
-                        Metabase
-                        <RetinaImage
-                            className="mx1"
-                            src="/app/img/slack_emoji.png"
-                            width={79}
-                            forceOriginalDimensions={false /* broken in React v0.13 */}
-                        />
-                        Glip
+                        You can use Glip!
                     </h1>
                     <h3 className="text-grey-1">Answers sent right to your Glip Teams</h3>
 
