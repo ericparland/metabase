@@ -13,6 +13,5 @@ const LogoBadge = ({ dark }: Props) =>
         <span className="text-small">
             <span className="ml1 text-grey-3"></span>
         </span>
-    </a>
 
 export default LogoBadge;
