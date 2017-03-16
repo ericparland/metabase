@@ -85,6 +85,16 @@
            :allows_recipients true
            :recipients        ["user", "email"]
            :schedules         [:daily :weekly :monthly]}
+   ;;TODO: this may work out... or maybe won't
+   :glip {:type              "glip"
+          :name              "Glip"
+          :allows_recipients false
+          :schedules         [:hourly :daily :weekly :monthly]
+          :fields            [{:name "group"
+                               :type "select"
+                               :displayName "Post to"
+                               :options ["#general"]
+                               :required true}]}
    :slack {:type              "slack"
            :name              "Slack"
            :allows_recipients false

@@ -35,7 +35,8 @@ const MONTH_DAY_OPTIONS = [
 
 const CHANNEL_NOUN_PLURAL = {
     "email": "Emails",
-    "slack": "Slack messages"
+    "slack": "Slack messages",
+    "glip": "Glip messages"
 };
 
 export default class SchedulePicker extends Component {

@@ -85,6 +85,10 @@ export const SlackApi = {
     updateSettings:              PUT("/api/slack/settings"),
 };
 
+export const GlipApi = {
+    updateSettings:              PUT("/api/glip/settings"),
+};
+
 export const MetabaseApi = {
     db_list:                     GET("/api/database"),
     db_list_with_tables:         GET("/api/database?include_tables=true"),

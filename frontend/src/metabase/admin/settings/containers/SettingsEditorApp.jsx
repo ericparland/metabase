@@ -120,7 +120,7 @@ export default class SettingsEditorApp extends Component {
                     updateSlackSettings={this.props.updateSlackSettings}
                 />
             );
-        } else if (section.name === "Glip") {
+        } else if (activeSection.name === "Glip") {
             return (
                 <SettingsGlipForm
                     ref="glipForm"

@@ -246,6 +246,9 @@ export var ICON_PATHS = {
     },
     "slack": {
         img: "/app/img/slack.png"
+    },
+    "glip": {
+        img: "/app/img/glip.png"
     }
 };
 

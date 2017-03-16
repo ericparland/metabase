@@ -69,7 +69,7 @@
                                                         :content-type :json
                                                         :cookie-store cs
                                                         :debug :true})
-            (log/warn "Error uploading file to Slack:" (u/pprint-to-str json-parsed)))))))
+            (log/warn "Error uploading file to Glip:" (u/pprint-to-str json-parsed)))))))
 
 
 (defn post-chat-message!
