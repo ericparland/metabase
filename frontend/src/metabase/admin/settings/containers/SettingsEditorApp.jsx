@@ -8,6 +8,7 @@ import AdminLayout from "metabase/components/AdminLayout.jsx";
 import SettingsSetting from "../components/SettingsSetting.jsx";
 import SettingsEmailForm from "../components/SettingsEmailForm.jsx";
 import SettingsSlackForm from "../components/SettingsSlackForm.jsx";
+import SettingsGlipForm from "../components/SettingsGlipForm.jsx";
 import SettingsSetupList from "../components/SettingsSetupList.jsx";
 import SettingsUpdatesForm from "../components/SettingsUpdatesForm.jsx";
 import SettingsSingleSignOnForm from "../components/SettingsSingleSignOnForm.jsx";
@@ -47,6 +48,7 @@ export default class SettingsEditorApp extends Component {
         updateSetting: PropTypes.func.isRequired,
         updateEmailSettings: PropTypes.func.isRequired,
         updateSlackSettings: PropTypes.func.isRequired,
+        updateGlipSettings: PropTypes.func.isRequired,
         sendTestEmail: PropTypes.func.isRequired
     };
 
@@ -122,7 +124,7 @@ export default class SettingsEditorApp extends Component {
             return (
                 <SettingsGlipForm
                     ref="glipForm"
-                    elements={section.settings}
+                    elements={activeSection.settings}
                     updateGlipSettings={this.props.updateGlipSettings}
                 />
             );
