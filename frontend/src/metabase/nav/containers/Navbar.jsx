@@ -109,8 +109,8 @@ export default class Navbar extends Component {
             <nav className={cx("Nav CheckBg CheckBg-offset relative bg-brand sm-py2 sm-py1 xl-py3", this.props.className)}>
                 <ul className="pl4 pr1 flex align-center">
                     <li>
-                        <Link to="/" data-metabase-event={"Navbar;Logo"} className="NavItem cursor-pointer text-white flex align-center my1 transition-background">
-                            <LogoIcon className="text-white m1"></LogoIcon>
+                        <Link to="/" data-metabase-event={"Navbar;Logo"} className="NavItem cursor-pointer text-white flex align-center my1 transition-background p1">
+                            <LogoIcon dark={true}></LogoIcon>
                         </Link>
                     </li>
                     <li className="pl3">
@@ -134,9 +134,6 @@ export default class Navbar extends Component {
                     </li>
                     <li className="pl3">
                         <Link to="/q" data-metabase-event={"Navbar;New Question"} style={this.styles.newQuestion} className="NavNewQuestion rounded inline-block bg-white text-brand text-bold cursor-pointer px2 no-decoration transition-all">New <span className="hide sm-show">Question</span></Link>
-                    </li>
-                    <li className="pl1">
-                    <Link to="/" data-metabase-event={"Navbar;Job Launcher"} style={this.styles.navButton} className={cx("NavItem cursor-pointer text-white text-bold no-decoration flex align-center px2 transition-background")} activeClassName="NavItem--selected">Job Launcher</Link>
                     </li>
                     <li className="flex-align-right transition-background">
                         <div className="inline-block text-white"><ProfileLink {...this.props}></ProfileLink></div>

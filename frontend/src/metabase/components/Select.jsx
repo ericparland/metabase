@@ -81,8 +81,8 @@ class BrowserSelect extends Component {
                 className={className}
                 triggerElement={
                     <div className={"flex align-center " + (!value ? " text-grey-3" : "")}>
-                        <span className="mr1">{selectedName}</span>
-                        <Icon className="flex-align-right" name="chevrondown" size={12} />
+                        <span className="AdminSelect-content mr1">{selectedName}</span>
+                        <Icon className="AdminSelect-chevron flex-align-right" name="chevrondown" size={12} />
                     </div>
                 }
                 triggerClasses={cx("AdminSelect", className)}
@@ -138,11 +138,19 @@ export class Option extends Component {
                     "disabled": disabled
                 })}
             >
-                <Icon name="check" size={14} />
+                <Icon name="check" size={14} style={{ position: 'absolute' }} />
                 { icon &&
-                    <Icon name={icon} style={{ position: "absolute", color: iconColor, visibility: !selected ? "visible" : "hidden" }} size={iconSize} />
+                    <Icon
+                        name={icon}
+                        size={iconSize}
+                        style={{
+                            position: 'absolute',
+                            color: iconColor,
+                            visibility: !selected ? "visible" : "hidden"
+                        }}
+                    />
                 }
-                {children}
+                <span className="ml4">{children}</span>
             </div>
         );
     }

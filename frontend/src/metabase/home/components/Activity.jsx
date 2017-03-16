@@ -70,7 +70,7 @@ export default class Activity extends Component {
         } else if (user) {
             return user.first_name;
         } else {
-            return "Metabase";
+            return "RC Data Tool";
         }
     }
 

@@ -1,5 +1,6 @@
+import Utils from "metabase/lib/utils";
 import { handleActions } from "redux-actions";
-import i from "icepick";
+import { assoc } from "icepick";
 
 import {
     RESET_QB,
@@ -11,7 +12,6 @@ import {
     BEGIN_EDITING,
     CANCEL_EDITING,
 
-    LOAD_DATABASE,
     LOAD_TABLE_METADATA,
     LOAD_DATABASE_FIELDS,
     RELOAD_CARD,
@@ -35,7 +35,12 @@ import {
     QUERY_ERRORED,
     LOAD_OBJECT_DETAIL_FK_REFERENCES,
 
-    SET_CURRENT_STATE
+    SET_CURRENT_STATE,
+
+    CREATE_PUBLIC_LINK,
+    DELETE_PUBLIC_LINK,
+    UPDATE_ENABLE_EMBEDDING,
+    UPDATE_EMBEDDING_PARAMS
 } from "./actions";
 
 // various ui state options
@@ -64,8 +69,6 @@ export const uiControls = handleActions({
     isShowingNewbModal: false,
     isEditing: false,
     isRunning: false,
-    is404: false,
-    is500: false
 });
 
 
@@ -91,7 +94,12 @@ export const card = handleActions({
     [SET_QUERY_SOURCE_TABLE]: { next: (state, { payload }) => payload },
     [SET_QUERY]: { next: (state, { payload }) => payload.card },
 
-    [QUERY_COMPLETED]: { next: (state, { payload }) => ({ ...state, display: payload.cardDisplay }) }
+    [QUERY_COMPLETED]: { next: (state, { payload }) => ({ ...state, display: payload.cardDisplay }) },
+
+    [CREATE_PUBLIC_LINK]: { next: (state, { payload }) => ({ ...state, public_uuid: payload.uuid })},
+    [DELETE_PUBLIC_LINK]: { next: (state, { payload }) => ({ ...state, public_uuid: null })},
+    [UPDATE_ENABLE_EMBEDDING]: { next: (state, { payload }) => ({ ...state, enable_embedding: payload.enable_embedding })},
+    [UPDATE_EMBEDDING_PARAMS]: { next: (state, { payload }) => ({ ...state, embedding_params: payload.embedding_params })},
 }, null);
 
 // a copy of the card being worked on at it's last known saved state.  if the card is NEW then this should be null.
@@ -99,12 +107,12 @@ export const card = handleActions({
 //       because we can't have any links between the active card being modified and the "originalCard" for testing dirtiness
 // ALSO: we consistently check for payload.id because an unsaved card has no "originalCard"
 export const originalCard = handleActions({
-    [INITIALIZE_QB]: { next: (state, { payload }) => payload.originalCard ? JSON.parse(JSON.stringify(payload.originalCard)) : null },
-    [RELOAD_CARD]: { next: (state, { payload }) => payload.id ? JSON.parse(JSON.stringify(payload)) : null },
-    [CANCEL_EDITING]: { next: (state, { payload }) => payload.id ? JSON.parse(JSON.stringify(payload)) : null },
-    [SET_CARD_AND_RUN]: { next: (state, { payload }) => payload.id ? JSON.parse(JSON.stringify(payload)) : null },
-    [NOTIFY_CARD_CREATED]: { next: (state, { payload }) => JSON.parse(JSON.stringify(payload)) },
-    [NOTIFY_CARD_UPDATED]: { next: (state, { payload }) => JSON.parse(JSON.stringify(payload)) },
+    [INITIALIZE_QB]: { next: (state, { payload }) => payload.originalCard ? Utils.copy(payload.originalCard) : null },
+    [RELOAD_CARD]: { next: (state, { payload }) => payload.id ? Utils.copy(payload) : null },
+    [CANCEL_EDITING]: { next: (state, { payload }) => payload.id ? Utils.copy(payload) : null },
+    [SET_CARD_AND_RUN]: { next: (state, { payload }) => payload.id ? Utils.copy(payload) : null },
+    [NOTIFY_CARD_CREATED]: { next: (state, { payload }) => Utils.copy(payload) },
+    [NOTIFY_CARD_UPDATED]: { next: (state, { payload }) => Utils.copy(payload) },
 }, null);
 
 
@@ -116,13 +124,11 @@ export const databases = handleActions({
 // the table actively being queried against.  this is only used for MBQL queries.
 export const tableMetadata = handleActions({
     [RESET_QB]: { next: (state, { payload }) => null },
-    [LOAD_DATABASE]: { next: (state, { payload }) => null},
     [LOAD_TABLE_METADATA]: { next: (state, { payload }) => payload && payload.table ? payload.table : state }
 }, null);
 
 export const tableForeignKeys = handleActions({
     [RESET_QB]: { next: (state, { payload }) => null },
-    [LOAD_DATABASE]: { next: (state, { payload }) => null},
     [LOAD_TABLE_METADATA]: { next: (state, { payload }) => payload && payload.foreignKeys ? payload.foreignKeys : state }
 }, null);
 
@@ -152,7 +158,7 @@ export const queryExecutionPromise = handleActions({
 }, null);
 
 export const parameterValues = handleActions({
-    [SET_PARAMETER_VALUE]: { next: (state, { payload: { id, value }}) => i.assoc(state, id, value) }
+    [SET_PARAMETER_VALUE]: { next: (state, { payload: { id, value }}) => assoc(state, id, value) }
 }, {});
 
 export const currentState = handleActions({

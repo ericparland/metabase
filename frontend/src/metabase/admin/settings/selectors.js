@@ -5,6 +5,16 @@ import MetabaseSettings from "metabase/lib/settings";
 import { slugify } from "metabase/lib/formatting";
 
 import CustomGeoJSONWidget from "./components/widgets/CustomGeoJSONWidget.jsx";
+import {
+    PublicLinksDashboardListing,
+    PublicLinksQuestionListing,
+    EmbeddedQuestionListing,
+    EmbeddedDashboardListing
+} from "./components/widgets/PublicLinksListing.jsx";
+import SecretKeyWidget from "./components/widgets/SecretKeyWidget.jsx";
+import EmbeddingLegalese from "./components/widgets/EmbeddingLegalese";
+
+import { UtilApi } from "metabase/services";
 
 const SECTIONS = [
     {
@@ -20,7 +30,7 @@ const SECTIONS = [
                 type: "string"
             },
             {
-                key: "-site-url",
+                key: "site-url",
                 display_name: "Site URL",
                 type: "string"
             },
@@ -114,29 +124,6 @@ const SECTIONS = [
         ]
     },
     {
-        name: "Slack",
-        settings: [
-            {
-                key: "slack-token",
-                display_name: "Slack API Token",
-                description: "",
-                placeholder: "Enter the token you received from Slack",
-                type: "string",
-                required: false,
-                autoFocus: true
-            },
-            {
-                key: "metabot-enabled",
-                display_name: "Metabot",
-                type: "boolean",
-                // TODO: why do we have "defaultValue" in addition to "default" in the backend?
-                defaultValue: false,
-                required: true,
-                autoFocus: false
-            },
-        ]
-    },
-    {
             name: "Glip",
             settings: [
                 {
@@ -160,6 +147,29 @@ const SECTIONS = [
                 },
             ]
         },
+    {
+        name: "Slack",
+        settings: [
+            {
+                key: "slack-token",
+                display_name: "Slack API Token",
+                description: "",
+                placeholder: "Enter the token you received from Slack",
+                type: "string",
+                required: false,
+                autoFocus: true
+            },
+            {
+                key: "metabot-enabled",
+                display_name: "MetaBot",
+                type: "boolean",
+                // TODO: why do we have "defaultValue" in addition to "default" in the backend?
+                defaultValue: false,
+                required: true,
+                autoFocus: false
+            },
+        ]
+    },
     {
         name: "Single Sign-On",
         settings: [
@@ -188,6 +198,69 @@ const SECTIONS = [
                 noHeader: true
             }
         ]
+    },
+    {
+        name: "Public Sharing",
+        settings: [
+            {
+                key: "enable-public-sharing",
+                display_name: "Enable Public Sharing",
+                type: "boolean"
+            },
+            {
+                key: "-public-sharing-dashboards",
+                display_name: "Shared Dashboards",
+                widget: PublicLinksDashboardListing,
+                getHidden: (settings) => !settings["enable-public-sharing"]
+            },
+            {
+                key: "-public-sharing-questions",
+                display_name: "Shared Questions",
+                widget: PublicLinksQuestionListing,
+                getHidden: (settings) => !settings["enable-public-sharing"]
+            }
+        ]
+    },
+    {
+        name: "Embedding in other Applications",
+        settings: [
+            {
+                key: "enable-embedding",
+                description: null,
+                widget: EmbeddingLegalese,
+                getHidden: (settings) => settings["enable-embedding"]
+            },
+            {
+                key: "enable-embedding",
+                display_name: "Enable Embedding Metabase in other Applications",
+                type: "boolean",
+                onChanged: async (oldValue, newValue, settingsValues, onChange) => {
+                    if (!oldValue && newValue && !settingsValues["embedding-secret-key"]) {
+                        let result = await UtilApi.random_token();
+                        await onChange("embedding-secret-key", result.token);
+                    }
+                },
+                getHidden: (settings) => !settings["enable-embedding"]
+            },
+            {
+                key: "embedding-secret-key",
+                display_name: "Embedding secret key",
+                widget: SecretKeyWidget,
+                getHidden: (settings) => !settings["enable-embedding"]
+            },
+            {
+                key: "-embedded-dashboards",
+                display_name: "Embedded Dashboards",
+                widget: EmbeddedDashboardListing,
+                getHidden: (settings) => !settings["enable-embedding"]
+            },
+            {
+                key: "-embedded-questions",
+                display_name: "Embedded Questions",
+                widget: EmbeddedQuestionListing,
+                getHidden: (settings) => !settings["enable-embedding"]
+            }
+        ]
     }
 ];
 for (const section of SECTIONS) {
@@ -195,6 +268,17 @@ for (const section of SECTIONS) {
 }
 
 export const getSettings = state => state.settings.settings;
+
+export const getSettingValues = createSelector(
+    getSettings,
+    (settings) => {
+        const settingValues = {};
+        for (const setting of settings) {
+            settingValues[setting.key] = setting.value;
+        }
+        return settingValues;
+    }
+)
 
 export const getNewVersionAvailable = createSelector(
     getSettings,
@@ -213,13 +297,15 @@ export const getSections = createSelector(
         let settingsByKey = _.groupBy(settings, 'key');
         return SECTIONS.map(function(section) {
             let sectionSettings = section.settings.map(function(setting) {
-                const apiSetting = settingsByKey[setting.key][0];
+                const apiSetting = settingsByKey[setting.key] && settingsByKey[setting.key][0];
                 if (apiSetting) {
                     return {
                         placeholder: apiSetting.default,
                         ...apiSetting,
                         ...setting
                     };
+                } else {
+                    return setting;
                 }
             });
             return {

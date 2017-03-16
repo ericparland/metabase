@@ -1,6 +1,6 @@
 import moment from "moment";
 import _ from "underscore";
-import i from "icepick";
+import { getIn } from "icepick";
 
 import { createStore as originalCreateStore, applyMiddleware, compose } from "redux";
 import promise from 'redux-promise';
@@ -34,7 +34,7 @@ export const createStore = compose(
 // similar to createAction but accepts a (redux-thunk style) thunk and dispatches based on whether
 // the promise returned from the thunk resolves or rejects, similar to redux-promise
 export function createThunkAction(actionType, actionThunkCreator) {
-    return function(...actionArgs) {
+    function fn(...actionArgs) {
         var thunk = actionThunkCreator(...actionArgs);
         return async function(dispatch, getState) {
             try {
@@ -46,6 +46,8 @@ export function createThunkAction(actionType, actionThunkCreator) {
             }
         }
     }
+    fn.toString = () => actionType;
+    return fn;
 }
 
 // turns string timestamps into moment objects
@@ -79,10 +81,10 @@ export const fetchData = async ({
     getData,
     reload
 }) => {
-    const existingData = i.getIn(getState(), existingStatePath);
+    const existingData = getIn(getState(), existingStatePath);
     const statePath = requestStatePath.concat(['fetch']);
     try {
-        const requestState = i.getIn(getState(), ["requests", ...statePath]);
+        const requestState = getIn(getState(), ["requests", ...statePath]);
         if (!requestState || requestState.error || reload) {
             dispatch(setRequestState({ statePath, state: "LOADING" }));
             const data = await getData();
@@ -109,7 +111,7 @@ export const updateData = async ({
     dependentRequestStatePaths,
     putData
 }) => {
-    const existingData = i.getIn(getState(), existingStatePath);
+    const existingData = getIn(getState(), existingStatePath);
     const statePath = requestStatePath.concat(['update']);
     try {
         dispatch(setRequestState({ statePath, state: "LOADING" }));

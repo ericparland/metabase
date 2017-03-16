@@ -24,9 +24,11 @@ export default class AddToDashboard extends Component {
         return (
             <ModalContent
                 title="Add question to dashboard?"
-                className="mx4 mb4"
+                className="px4 mb4 scroll-y"
+                onClose={() => this.props.onClose()}
             >
-                <div className="py1 flex align-center">
+                <div className="py1">
+                    <div className="flex align-center">
                     { !query ?
                         <ExpandingSearchField
                             defaultValue={query && query.q}
@@ -52,6 +54,7 @@ export default class AddToDashboard extends Component {
                             </Button>
                         </div>
                     }
+                    </div>
                 </div>
                 { this.state.query ?
                     <EntityList
@@ -67,7 +70,7 @@ export default class AddToDashboard extends Component {
                             <ol>
                                 { collections.map((collection, index) =>
                                     <li
-                                        className="text-brand-hover flex align-center border-bottom cursor-pointer py1 mb1"
+                                        className="text-brand-hover flex align-center border-bottom cursor-pointer py1 md-py2"
                                         key={index}
                                         onClick={() => this.setState({
                                             collection: collection,
@@ -87,7 +90,7 @@ export default class AddToDashboard extends Component {
                                     </li>
                                 )}
                                 <li
-                                    className="text-brand-hover flex align-center border-bottom cursor-pointer py1 mb1"
+                                    className="text-brand-hover flex align-center border-bottom cursor-pointer py1 md-py2"
                                     onClick={() => this.setState({
                                         collection: { name: "Everything else" },
                                         query: { collection: "" }
@@ -95,7 +98,7 @@ export default class AddToDashboard extends Component {
                                 >
                                         <Icon
                                             className="mr2"
-                                            name="star"
+                                            name="everything"
                                         />
                                         <h3>Everything else</h3>
                                         <Icon

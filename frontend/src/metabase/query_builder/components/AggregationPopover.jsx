@@ -8,14 +8,14 @@ import Icon from "metabase/components/Icon.jsx";
 import Tooltip from "metabase/components/Tooltip.jsx";
 import Button from "metabase/components/Button.jsx";
 
-import Query from "metabase/lib/query";
-import { AggregationClause, NamedClause } from "metabase/lib/query";
+import Query, { AggregationClause, NamedClause } from "metabase/lib/query";
 
 import _ from "underscore";
 
 import ExpressionEditorTextfield from "./expressions/ExpressionEditorTextfield.jsx"
 
 const CUSTOM_SECTION_NAME = "Custom Expression";
+const METRICS_SECTION_NAME = "Common Metrics";
 
 export default class AggregationPopover extends Component {
     constructor(props, context) {
@@ -145,22 +145,24 @@ export default class AggregationPopover extends Component {
         let metrics = tableMetadata.metrics && tableMetadata.metrics.filter((mtrc) => mtrc.is_active === true || (selectedAggregation && selectedAggregation.id === mtrc.id));
         if (metrics && metrics.length > 0) {
             sections.push({
-                name: "Common Metrics",
+                name: METRICS_SECTION_NAME,
                 items: metrics.map(metric => ({
                     name: metric.name,
                     value: ["METRIC", metric.id],
                     isSelected: (aggregation) => AggregationClause.getMetric(aggregation) === metric.id,
                     metric: metric
                 })),
-                icon: "star-outline"
+                icon: "staroutline"
             });
         }
 
         let customExpressionIndex = sections.length;
-        sections.push({
-            name: CUSTOM_SECTION_NAME,
-            icon: "star-outline"
-        });
+        if (tableMetadata.db.features.indexOf("expression-aggregations") >= 0) {
+            sections.push({
+                name: CUSTOM_SECTION_NAME,
+                icon: "staroutline"
+            });
+        }
 
         if (sections.length === 1) {
             sections[0].name = null

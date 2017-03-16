@@ -99,7 +99,7 @@ export default class ProfileLink extends Component {
                                 : null }
 
                                 <li>
-                                    <a data-metabase-event={"Navbar;Profile Dropdown;Help "+tag} className="Dropdown-item block text-white no-decoration" href={"http://www.metabase.com/docs/"+tag} target="_blank">
+                                    <a data-metabase-event={"Navbar;Profile Dropdown;Help "+tag} className="Dropdown-item block text-white no-decoration" href={"http://www.localhost/docs/"+tag} target="_blank">
                                         Help
                                     </a>
                                 </li>
@@ -114,7 +114,7 @@ export default class ProfileLink extends Component {
 
                                 <li>
                                     <a data-metabase-event={"Navbar;Profile Dropdown;About "+tag} onClick={this.openModal.bind(this, "about")} className="Dropdown-item block text-white no-decoration">
-                                        About RC Data Tool
+                                        About RC Analytics tool
                                     </a>
                                 </li>
 
@@ -141,7 +141,7 @@ export default class ProfileLink extends Component {
                             <div className="text-brand pb2">
                                 <LogoIcon width={48} height={48} />
                             </div>
-                            <h2 style={{fontSize: "1.75em"}} className="text-dark">Thanks for using RC Analytics tool!</h2>
+                            <h2 style={{fontSize: "1.75em"}} className="text-dark">Thanks for using  RC Analytics tool!</h2>
                             <div className="pt2">
                                 <h3 className="text-dark mb1">You're on version {tag}</h3>
                                 <p className="text-grey-3 text-bold">Built on {date}</p>

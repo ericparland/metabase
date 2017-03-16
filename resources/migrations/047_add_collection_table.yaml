@@ -6,7 +6,7 @@ databaseChangeLog:
         ######################################## collection table ########################################
         - createTable:
             tableName: collection
-            remarks: 'Collections are to organize Cards and handle permissions.'
+            remarks: 'Collections are an optional way to organize Cards and handle permissions for them.'
             columns:
               - column:
                   name: id
@@ -35,13 +35,13 @@ databaseChangeLog:
               - column:
                   name: color
                   type: char(7)
-                  remarks: '7-char hex color for this Collection, with the hash sign.'
+                  remarks: 'Seven-character hex color for this Collection, including the preceding hash sign.'
                   constraints:
                     nullable: false
               - column:
                   name: archived
                   type: boolean
-                  remarks: 'Whether this Collection archived and hidden from users.'
+                  remarks: 'Whether this Collection has been archived and should be hidden from users.'
                   defaultValueBoolean: false
                   constraints:
                     nullable: false

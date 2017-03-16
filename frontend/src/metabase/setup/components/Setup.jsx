@@ -38,7 +38,7 @@ export default class Setup extends Component {
         const { tag } = MetabaseSettings.get('version');
         return (
             <div className="SetupHelp bordered border-dashed p2 rounded mb4" >
-                If you feel stuck, our getting started guide is just a click away.
+                If you feel stuck, <a className="link" href={"http://localhost/docs/"+tag+"/setting-up-rc-data-tool"} target="_blank">our getting started guide</a> is just a click away.
             </div>
         );
     }
@@ -85,7 +85,7 @@ export default class Setup extends Component {
                                         <NewsletterForm initialEmail={userDetails && userDetails.email} />
                                     </div>
                                     <div className="pt4 pb2">
-                                        <Link to="/?new" className="Button Button--primary" onClick={this.completeSetup.bind(this)}>Take me to Metabase</Link>
+                                        <Link to="/?new" className="Button Button--primary" onClick={this.completeSetup.bind(this)}>Take me to RC Data Tool</Link>
                                     </div>
                                 </section>
                             : null }
