@@ -1,110 +1,209 @@
-(ns metabase.pulse
-  "Public API for sending Pulses."
-  (:require (clojure [pprint :refer [cl-format]]
-                     [string :refer [upper-case]])
-            [clojure.tools.logging :as log]
-            [metabase.email :as email]
-            [metabase.email.messages :as messages]
-            [metabase.integrations.slack :as slack]
-            [metabase.integrations.glip :as glip]
-            [metabase.models.card :refer [Card]]
-            [metabase.pulse.render :as render]
-            [metabase.query-processor :as qp]
-            [metabase.util.urls :as urls]
-            [metabase.util :as u]
-            [metabase.util.urls :as urls]))
+(ns metabase.models.pulse
+  (:require [clojure.set :as set]
+            [medley.core :as m]
+            [metabase.api.common :refer [*current-user*]]
+            (toucan [db :as db]
+                    [hydrate :refer [hydrate]]
+                    [models :as models])
+            [metabase.db :as mdb]
+            [metabase.events :as events]
+            (metabase.models [card :refer [Card]]
+                             [interface :as i]
+                             [pulse-card :refer [PulseCard]]
+                             [pulse-channel :refer [PulseChannel] :as pulse-channel])
+            [metabase.util :as u]))
+
+;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
+
+(defn- perms-objects-set [pulse read-or-write]
+  (set (when-let [card-ids (db/select-field :card_id PulseCard, :pulse_id (u/get-id pulse))]
+         (apply set/union (for [card (db/select [Card :dataset_query], :id [:in card-ids])]
+                            (i/perms-objects-set card read-or-write))))))
+
+(defn- channels-with-recipients
+  "Get the 'channels' associated with this PULSE, including recipients of those 'channels'.
+   If `:channels` is already hydrated, as it will be when using `retrieve-pulses`, this doesn't need to make any DB calls."
+  [pulse]
+  (or (:channels pulse)
+      (-> (db/select PulseChannel, :pulse_id (u/get-id pulse))
+          (hydrate :recipients))))
+
+(defn- emails
+  "Get the set of emails this PULSE will be sent to."
+  [pulse]
+  (set (for [channel   (channels-with-recipients pulse)
+             recipient (:recipients channel)]
+         (:email recipient))))
+
+(defn- can-read? [pulse]
+  (or (i/current-user-has-full-permissions? :read pulse)
+      (contains? (emails pulse) (:email @*current-user*))))
 
 
-;;; ## ---------------------------------------- PULSE SENDING ----------------------------------------
+;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
+
+(models/defmodel Pulse :pulse)
+
+(defn- pre-delete [{:keys [id]}]
+  (db/delete! PulseCard :pulse_id id)
+  (db/delete! PulseChannel :pulse_id id))
+
+(u/strict-extend (class Pulse)
+  models/IModel
+  (merge models/IModelDefaults
+         {:hydration-keys (constantly [:pulse])
+          :properties     (constantly {:timestamped? true})
+          :pre-delete     pre-delete})
+  i/IObjectPermissions
+  (merge i/IObjectPermissionsDefaults
+         {:perms-objects-set  perms-objects-set
+          ;; I'm not 100% sure this covers everything. If a user is subscribed to a pulse they're still allowed to know it exists, right?
+          :can-read?          can-read?
+          :can-write?         (partial i/current-user-has-full-permissions? :write)}))
 
 
-;; TODO: this is probably something that could live somewhere else and just be reused
-(defn execute-card
-  "Execute the query for a single card."
-  [card-id]
-  {:pre [(integer? card-id)]}
-  (when-let [card (Card card-id)]
-    (let [{:keys [creator_id dataset_query]} card]
-      (try
-        {:card card :result (qp/dataset-query dataset_query {:executed-by creator_id})}
-        (catch Throwable t
-               (log/warn (format "Error running card query (%n)" card-id) t))))))
+;;; ------------------------------------------------------------ Hydration ------------------------------------------------------------
 
-(defn- send-email-pulse!
-  "Send a `Pulse` email given a list of card results to render and a list of recipients to send to."
-  [{:keys [id name] :as pulse} results recipients]
-  (log/debug (format "Sending Pulse (%d: %s) via Channel :email" id name))
-  (let [email-subject    (str "Pulse: " name)
-        email-recipients (filterv u/is-email? (map :email recipients))]
-    (email/send-message!
-      :subject      email-subject
-      :recipients   email-recipients
-      :message-type :attachments
-      :message      (messages/render-pulse-email pulse results))))
-
-(defn create-and-upload-slack-attachments!
-  "Create an attachment in Slack for a given Card by rendering its result into an image and uploading it."
-  [card-results]
-  (when-let [{channel-id :id} (slack/get-or-create-files-channel!)]
-    (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} card-results]
-             (let [image-byte-array (render/render-pulse-card-to-png card result)
-                   slack-file-url   (slack/upload-file! image-byte-array "image.png" channel-id)]
-               {:title      card-name
-                :title_link (urls/card-url card-id)
-                :image_url  slack-file-url
-                :fallback   card-name})))))
+(defn ^:hydrate channels
+  "Return the `PulseChannels` associated with this PULSE."
+  [{:keys [id]}]
+  (db/select PulseChannel, :pulse_id id))
 
 
-(defn- send-slack-pulse!
-  "Post a `Pulse` to a slack channel given a list of card results to render and details about the slack destination."
-  [pulse results channel-id]
-  {:pre [(string? channel-id)]}
-  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Slack" (:id pulse) (:name pulse)))
-  (let [attachments (create-and-upload-slack-attachments! results)]
-    (slack/post-chat-message! channel-id
-                              (str "Pulse: " (:name pulse))
-                              attachments)))
-
-;TODO: dopilit'!
-(defn- send-glip-pulse!
-  "Post a `Pulse` to a Glip group given a list of card results to render and details about the Glip destination."
-  [pulse results channel-id]
-  ;{:pre [(string? channel-id)]}
-  (log/debug (u/format-color 'cyan "Getting group id Pulse (%d: %s) via Glip" (:id pulse) (:name pulse)))
-  (log/debug (pr-str channel-id))
-  (log/debug (u/format-color 'cyan (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id))))
-  ;(let [group-id (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) (channel-id)))]
-  ;(log/warn (u/pprint-to-str (group-id)))
-  (log/debug (u/format-color 'cyan "Sending Pulse (%d: %s) via Glip"  (:id pulse) (:name pulse)))
-  (glip/regenerate-cookie)
-  (doall (for [{{card-id :id, card-name :name, :as card} :card, result :result} results]
-           (let [image-byte-array (binding [render/*include-title* true](render/render-pulse-card-to-png card result))]
-             (log/warn "Rendered card: " (u/pprint-to-str image-byte-array))
-             (glip/upload-and-post-file! (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)) image-byte-array "image.png")
-             (glip/post-chat-message! (:_id (get (#(zipmap (map :set_abbreviation %) %)(glip/groups-list)) channel-id)) (str "Pulse: " (:name pulse)))
-             )
-           )
-         ))
-
-(defn send-pulse!
-  "Execute and Send a `Pulse`, optionally specifying the specific `PulseChannels`.  This includes running each
-   `PulseCard`, formatting the results, and sending the results to any specified destination.
-
-   Example:
-       (send-pulse! pulse)                       Send to all Channels
-       (send-pulse! pulse :channel-ids [312])    Send only to Channel with :id = 312"
-  [{:keys [cards] :as pulse} & {:keys [channel-ids]}]
-  {:pre [(map? pulse) (every? map? cards) (every? :id cards)]}
-  (let [results     (for [card cards]
-                      (execute-card (:id card)))
-        channel-ids (or channel-ids (mapv :id (:channels pulse)))]
-    (doseq [channel-id channel-ids]
-      (let [{:keys [channel_type details recipients]} (some #(when (= channel-id (:id %)) %)
-                                                            (:channels pulse))]
-        (log/warn (u/pprint-to-str details))
-        (condp = (keyword channel_type)
-               :email (send-email-pulse! pulse results recipients)
-               :slack (send-slack-pulse! pulse results (:channel details))
-               :glip  (send-glip-pulse! pulse results (:group details)))))))
+(defn ^:hydrate cards
+  "Return the `Cards` associated with this PULSE."
+  [{:keys [id]}]
+  (db/select [Card :id :name :description :display]
+             (mdb/join [Card :id] [PulseCard :card_id])
+             (db/qualify PulseCard :pulse_id) id
+             {:order-by [[(db/qualify PulseCard :position) :asc]]}))
 
 
+;;; ------------------------------------------------------------ Pulse Fetching Helper Fns ------------------------------------------------------------
+
+(defn retrieve-pulse
+  "Fetch a single `Pulse` by its ID value."
+  [id]
+  {:pre [(integer? id)]}
+  (-> (Pulse id)
+      (hydrate :creator :cards [:channels :recipients])
+      (m/dissoc-in [:details :emails])))
+
+
+(defn retrieve-pulses
+  "Fetch all `Pulses`."
+  []
+  (for [pulse (-> (db/select Pulse, {:order-by [[:name :asc]]})
+                  (hydrate :creator :cards [:channels :recipients]))]
+    (m/dissoc-in pulse [:details :emails])))
+
+
+;;; ------------------------------------------------------------ Other Persistence Functions ------------------------------------------------------------
+
+(defn update-pulse-cards!
+  "Update the `PulseCards` for a given PULSE.
+   CARD-IDS should be a definitive collection of *all* IDs of cards for the pulse in the desired order.
+   *  If an ID in CARD-IDS has no corresponding existing `PulseCard` object, one will be created.
+   *  If an existing `PulseCard` has no corresponding ID in CARD-IDs, it will be deleted.
+   *  All cards will be updated with a `position` according to their place in the collection of CARD-IDS"
+  {:arglists '([pulse card-ids])}
+  [{:keys [id]} card-ids]
+  {:pre [(integer? id)
+         (sequential? card-ids)
+         (every? integer? card-ids)]}
+  ;; first off, just delete any cards associated with this pulse (we add them again below)
+  (db/delete! PulseCard :pulse_id id)
+  ;; now just insert all of the cards that were given to us
+  (when (seq card-ids)
+        (let [cards (map-indexed (fn [idx itm] {:pulse_id id :card_id itm :position idx}) card-ids)]
+          (db/insert-many! PulseCard cards))))
+
+
+(defn- create-update-delete-channel!
+  "Utility function which determines how to properly update a single pulse channel."
+  [pulse-id new-channel existing-channel]
+  ;; NOTE that we force the :id of the channel being updated to the :id we *know* from our
+  ;;      existing list of `PulseChannels` pulled from the db to ensure we affect the right record
+  (let [channel (when new-channel (assoc new-channel
+                                         :pulse_id       pulse-id
+                                         :id             (:id existing-channel)
+                                         :channel_type   (keyword (:channel_type new-channel))
+                                         :schedule_type  (keyword (:schedule_type new-channel))
+                                         :schedule_frame (keyword (:schedule_frame new-channel))))]
+    (cond
+      ;; 1. in channels, NOT in db-channels = CREATE
+      (and channel (not existing-channel))  (pulse-channel/create-pulse-channel! channel)
+      ;; 2. NOT in channels, in db-channels = DELETE
+      (and (nil? channel) existing-channel) (db/delete! PulseChannel :id (:id existing-channel))
+      ;; 3. in channels, in db-channels = UPDATE
+      (and channel existing-channel)        (pulse-channel/update-pulse-channel! channel)
+      ;; 4. NOT in channels, NOT in db-channels = NO-OP
+      :else nil)))
+
+(defn update-pulse-channels!
+  "Update the `PulseChannels` for a given PULSE.
+   CHANNELS should be a definitive collection of *all* of the channels for the the pulse.
+   * If a channel in the list has no existing `PulseChannel` object, one will be created.
+   * If an existing `PulseChannel` has no corresponding entry in CHANNELS, it will be deleted.
+   * All previously existing channels will be updated with their most recent information."
+  {:arglists '([pulse channels])}
+  [{:keys [id]} channels]
+  {:pre [(integer? id)
+         (coll? channels)
+         (every? map? channels)]}
+  (let [new-channels   (group-by (comp keyword :channel_type) channels)
+        old-channels   (group-by (comp keyword :channel_type) (db/select PulseChannel :pulse_id id))
+        handle-channel #(create-update-delete-channel! id (first (get new-channels %)) (first (get old-channels %)))]
+    (assert (zero? (count (get new-channels nil)))
+            "Cannot have channels without a :channel_type attribute")
+    ;; for each of our possible channel types call our handler function
+    (doseq [[channel-type] pulse-channel/channel-types]
+      (handle-channel channel-type))))
+
+
+(defn create-pulse!
+  "Create a new `Pulse` by inserting it into the database along with all associated pieces of data such as:
+  `PulseCards`, `PulseChannels`, and `PulseChannelRecipients`.
+   Returns the newly created `Pulse` or throws an Exception."
+  [pulse-name creator-id card-ids channels]
+  {:pre [(string? pulse-name)
+         (integer? creator-id)
+         (sequential? card-ids)
+         (seq card-ids)
+         (every? integer? card-ids)
+         (coll? channels)
+         (every? map? channels)]}
+  (db/transaction
+    (let [{:keys [id] :as pulse} (db/insert! Pulse
+                                             :creator_id creator-id
+                                             :name pulse-name)]
+      ;; add card-ids to the Pulse
+      (update-pulse-cards! pulse card-ids)
+      ;; add channels to the Pulse
+      (update-pulse-channels! pulse channels)
+      ;; return the full Pulse (and record our create event)
+      (events/publish-event! :pulse-create (retrieve-pulse id)))))
+
+
+(defn update-pulse!
+  "Update an existing `Pulse`, including all associated data such as: `PulseCards`, `PulseChannels`, and `PulseChannelRecipients`.
+   Returns the updated `Pulse` or throws an Exception."
+  [{:keys [id name cards channels] :as pulse}]
+  {:pre [(integer? id)
+         (string? name)
+         (sequential? cards)
+         (> (count cards) 0)
+         (every? integer? cards)
+         (coll? channels)
+         (every? map? channels)]}
+  (db/transaction
+    ;; update the pulse itself
+    (db/update! Pulse id, :name name)
+    ;; update cards (only if they changed)
+    (when (not= cards (map :card_id (db/select [PulseCard :card_id], :pulse_id id, {:order-by [[:position :asc]]})))
+          (update-pulse-cards! pulse cards))
+    ;; update channels
+    (update-pulse-channels! pulse channels)
+    ;; fetch the fully updated pulse and return it (and fire off an event)
+    (->> (retrieve-pulse id)
+         (events/publish-event! :pulse-update))))
