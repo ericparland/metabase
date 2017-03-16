@@ -6,6 +6,7 @@
             [metabase.email :as email]
             [metabase.email.messages :as messages]
             [metabase.integrations.slack :as slack]
+            [metabase.integrations.glip :as glip]
             [metabase.models.card :refer [Card]]
             [metabase.pulse.render :as render]
             [metabase.query-processor :as qp]
