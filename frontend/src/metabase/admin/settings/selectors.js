@@ -144,7 +144,8 @@ const SECTIONS = [
                     type: "password",
                     required: true,
                     autoFocus: false
-                },
+                }
+
             ]
         },
     {
@@ -167,7 +168,7 @@ const SECTIONS = [
                 defaultValue: false,
                 required: true,
                 autoFocus: false
-            },
+            }
         ]
     },
     {
