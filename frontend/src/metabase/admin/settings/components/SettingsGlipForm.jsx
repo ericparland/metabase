@@ -98,6 +98,10 @@ export default class SettingsGlipForm extends Component {
         this.setState({
             formData: { ...this.state.formData, [element.key]: (MetabaseUtils.isEmpty(value)) ? null : value }
         });
+
+        if (element.key === "metabot-enabled") {
+            MetabaseAnalytics.trackEvent("Glip Settings", "Toggle Metabot", value);
+        }
     }
 
     handleFormErrors(error) {
