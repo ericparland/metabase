@@ -127,6 +127,7 @@ export const MetabaseApi = {
     field_update:                PUT("/api/field/:id"),
     dataset:                    POST("/api/dataset"),
     dataset_duration:           POST("/api/dataset/duration"),
+    dataset_duration_public:           POST("/api/dataset/duration-public"),
 };
 
 export const PulseApi = {

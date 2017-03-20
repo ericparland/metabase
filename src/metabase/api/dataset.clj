@@ -49,6 +49,22 @@
                 (float (/ (reduce + running-times)
                           (count running-times))))}))
 
+(defendpoint POST "/duration-public"
+  "Get historical query execution duration."
+  [:as {{:keys [database] :as query} :body}]
+  ;;(read-check Database database)
+  ;; add sensible constraints for results limits on our query
+  (let [query         (assoc query :constraints default-query-constraints)
+        running-times (db/select-field :running_time QueryExecution
+                                       :query_hash (hash query)
+                                       {:order-by [[:started_at :desc]]
+                                        :limit    10})]
+    {:average (if (empty? running-times)
+                  0
+                  (float (/ (reduce + running-times)
+                            (count running-times))))}))
+
+
 (defn as-csv
   "Return a CSV response containing the RESULTS of a query."
   {:arglists '([results])}
