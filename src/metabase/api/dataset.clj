@@ -64,8 +64,9 @@
   ;;                0
   ;;                (float (/ (reduce + running-times)
   ;;                          (count running-times))))})
-  (:average 0)
-  )
+  (log/warn (u/pprint-to-str "hello!"))
+  {:average 0})
+
 
 
 (defn as-csv
