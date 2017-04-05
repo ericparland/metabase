@@ -1,6 +1,7 @@
 (ns metabase.api.dataset
   "/api/dataset endpoints."
   (:require [clojure.data.csv :as csv]
+            [clojure.tools.logging :as log]
             [cheshire.core :as json]
             [compojure.core :refer [GET POST]]
             [metabase.api.common :refer :all]
@@ -54,15 +55,17 @@
   [:as {{:keys [database] :as query} :body}]
   ;;(read-check Database database)
   ;; add sensible constraints for results limits on our query
-  (let [query         (assoc query :constraints default-query-constraints)
-        running-times (db/select-field :running_time QueryExecution
-                                       :query_hash (hash query)
-                                       {:order-by [[:started_at :desc]]
-                                        :limit    10})]
-    {:average (if (empty? running-times)
-                  0
-                  (float (/ (reduce + running-times)
-                            (count running-times))))}))
+  ;;(let [query         (assoc query :constraints default-query-constraints)
+  ;;      running-times (db/select-field :running_time QueryExecution
+  ;;                                     :query_hash (hash query)
+  ;;                                     {:order-by [[:started_at :desc]]
+  ;;                                     :limit    10})]
+  ;;  {:average (if (empty? running-times)
+  ;;                0
+  ;;                (float (/ (reduce + running-times)
+  ;;                          (count running-times))))})
+  (:average 0)
+  )
 
 
 (defn as-csv
