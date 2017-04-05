@@ -246,7 +246,8 @@ export const fetchCardData = createThunkAction(FETCH_CARD_DATA, function(card, d
 
 export const fetchCardDuration = createThunkAction(FETCH_CARD_DURATION, function(card, datasetQuery) {
     return async function(dispatch, getState) {
-        let result = await MetabaseApi.dataset_duration_public(datasetQuery);
+        //let result = await MetabaseApi.dataset_duration_public(datasetQuery);
+        let result = 0;
         return {
             id: card.id,
             result: {
