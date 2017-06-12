@@ -34,17 +34,16 @@
       :user_id (:id user))
     (events/publish-event! :user-login {:user_id (:id user), :session_id <>, :first_login (not (boolean (:last_login user)))})))
 
-
 ;;; ## API Endpoints
 
 (def ^:private login-throttlers
-  {:username        (throttle/make-throttler :username)
+  {:username   (throttle/make-throttler :username)
    :ip-address (throttle/make-throttler :username, :attempts-threshold 50)}) ; IP Address doesn't have an actual UI field so just show error by username
 
 (api/defendpoint POST "/"
   "Login."
   [:as {{:keys [username password]} :body, remote-address :remote-addr}]
-  {username    su/NonBlankString
+  {username su/NonBlankString
    password su/NonBlankString}
   (throttle/check (login-throttlers :ip-address) remote-address)
   (throttle/check (login-throttlers :username)   username)
@@ -71,7 +70,6 @@
     ;; Don't leak whether the account doesn't exist or the password was incorrect
     (throw (ex-info "Password did not match stored password." {:status-code 400
                                                                :errors      {:password "did not match stored password"}}))))
-
 
 (api/defendpoint DELETE "/"
   "Logout."
