@@ -17,7 +17,7 @@ window.METABASE = true;
 
 // check that we're both iframed, and the parent is a Metabase instance
 // used for detecting if we're previewing an embed
-export const IFRAMED_IN_METABASE = (function() {
+export const IFRAMED_IN_SELF = (function() {
     try {
         return window.self !== window.top && window.top.METABASE;
     } catch (e) {
@@ -90,7 +90,8 @@ export function getSelectionPosition(element) {
     else {
         try {
             const selection = window.getSelection();
-            const range = selection.getRangeAt(0);
+            // Clone the Range otherwise setStart/setEnd will mutate the actual selection in Chrome 58+ and Firefox!
+            const range = selection.getRangeAt(0).cloneRange();
             const { startContainer, startOffset } = range;
             range.setStart(element, 0);
             const end = range.toString().length;
@@ -178,7 +179,7 @@ var STYLE_SHEET = (function() {
     return style.sheet;
 })();
 
-export function addCSSRule(selector, rules, index) {
+export function addCSSRule(selector, rules, index = 0) {
     if("insertRule" in STYLE_SHEET) {
         STYLE_SHEET.insertRule(selector + "{" + rules + "}", index);
     }
@@ -206,4 +207,27 @@ export function constrainToScreen(element, direction, padding) {
         throw new Error("Direction " + direction + " not implemented");
     }
     return false;
+}
+
+// Used for tackling Safari rendering issues
+// http://stackoverflow.com/a/3485654
+export function forceRedraw(domNode) {
+    domNode.style.display='none';
+    domNode.offsetHeight;
+    domNode.style.display='';
+}
+
+export function moveToBack(element) {
+    if (element && element.parentNode) {
+        element.parentNode.insertBefore(
+            element,
+            element.parentNode.firstChild
+        );
+    }
+}
+
+export function moveToFront(element) {
+    if (element && element.parentNode) {
+        element.parentNode.appendChild(element);
+    }
 }

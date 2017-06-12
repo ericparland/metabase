@@ -1,18 +1,16 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 import ReactDOM from "react-dom";
 
 import "./TableInteractive.css";
 
 import Icon from "metabase/components/Icon.jsx";
 
-import Value from "metabase/components/Value.jsx";
-import QuickFilterPopover from "metabase/query_builder/components/QuickFilterPopover.jsx";
-
-import MetabaseAnalytics from "metabase/lib/analytics";
-import { capitalize } from "metabase/lib/formatting";
+import { formatValue, capitalize } from "metabase/lib/formatting";
 import { getFriendlyName } from "metabase/visualizations/lib/utils";
+import { getTableCellClickedObject, isColumnRightAligned } from "metabase/visualizations/lib/table";
 
 import _ from "underscore";
 import cx from "classnames";
@@ -21,25 +19,20 @@ import ExplicitSize from "metabase/components/ExplicitSize.jsx";
 import { Grid, ScrollSync } from "react-virtualized";
 import Draggable from "react-draggable";
 
-const HEADER_HEIGHT = 50;
-const ROW_HEIGHT = 35;
+const HEADER_HEIGHT = 36;
+const ROW_HEIGHT = 30;
 const MIN_COLUMN_WIDTH = ROW_HEIGHT;
 const RESIZE_HANDLE_WIDTH = 5;
 
-import type { Column } from "metabase/meta/types/Dataset";
-import type { VisualizationProps } from "metabase/visualizations";
+import type { VisualizationProps } from "metabase/meta/types/Visualization";
 
 type Props = VisualizationProps & {
     width: number,
     height: number,
     sort: any,
     isPivoted: boolean,
-    cellClickedFn: (number, number) => void,
-    cellIsClickableFn: (number, number) => boolean,
-    setSortFn: (/* TODO */) => void,
 }
 type State = {
-    popover: ?{ rowIndex: number, columnIndex: number },
     columnWidths: number[],
     contentWidths: ?number[]
 }
@@ -54,7 +47,7 @@ type CellRendererProps = {
 type GridComponent = Component<void, void, void> & { recomputeGridSize: () => void }
 
 @ExplicitSize
-export default class TableInteractive extends Component<*, Props, State> {
+export default class TableInteractive extends Component {
     state: State;
     props: Props;
 
@@ -69,7 +62,6 @@ export default class TableInteractive extends Component<*, Props, State> {
         super(props);
 
         this.state = {
-            popover: null,
             columnWidths: [],
             contentWidths: null
         };
@@ -79,16 +71,11 @@ export default class TableInteractive extends Component<*, Props, State> {
     static propTypes = {
         data: PropTypes.object.isRequired,
         isPivoted: PropTypes.bool.isRequired,
-        sort: PropTypes.array,
-        setSortFn: PropTypes.func,
-        cellIsClickableFn: PropTypes.func.isRequired,
-        cellClickedFn: PropTypes.func.isRequired
+        sort: PropTypes.array
     };
 
     static defaultProps = {
         isPivoted: false,
-        cellIsClickableFn: () => false,
-        cellClickedFn: () => {}
     };
 
     componentWillMount() {
@@ -137,7 +124,7 @@ export default class TableInteractive extends Component<*, Props, State> {
             contentWidths: null
         });
         this.columnHasResized = {};
-        this.props.onUpdateVisualizationSettings({ "table.column_widths": [] });
+        this.props.onUpdateVisualizationSettings({ "table.column_widths": undefined });
     }
 
     _measure() {
@@ -154,6 +141,8 @@ export default class TableInteractive extends Component<*, Props, State> {
                     return contentWidths[index] + 1; // + 1 to make sure it doen't wrap?
                 } else if (this.state.columnWidths[index]) {
                     return this.state.columnWidths[index];
+                } else {
+                    return 0;
                 }
             } else {
                 return contentWidths[index] + 1;
@@ -221,82 +210,45 @@ export default class TableInteractive extends Component<*, Props, State> {
         setTimeout(() => this.recomputeGridSize(), 1);
     }
 
-    isSortable() {
-        return (this.props.setSortFn !== undefined);
-    }
-
-    setSort(column: Column) {
-        // lets completely delegate this to someone else up the stack :)
-        this.props.setSortFn(column);
-        MetabaseAnalytics.trackEvent('QueryBuilder', 'Set Sort', 'table column');
-    }
-
-    cellClicked(rowIndex: number, columnIndex: number) {
-        this.props.cellClickedFn(rowIndex, columnIndex);
-    }
-
-    popoverFilterClicked(rowIndex: number, columnIndex: number, operator: string) {
-        this.props.cellClickedFn(rowIndex, columnIndex, operator);
-        this.setState({ popover: null });
-    }
-
-    showPopover(rowIndex: number, columnIndex: number) {
-        this.setState({
-            popover: {
-                rowIndex: rowIndex,
-                columnIndex: columnIndex
-            }
-        });
-    }
-
-    onClosePopover = () => {
-        this.setState({ popover: null });
-    }
-
     cellRenderer = ({ key, style, rowIndex, columnIndex }: CellRendererProps) => {
-        const { data: { cols, rows }} = this.props;
+        const { data, isPivoted, onVisualizationClick, visualizationIsClickable } = this.props;
+        const { rows, cols } = data;
+
         const column = cols[columnIndex];
-        const cellData = rows[rowIndex][columnIndex];
-        if (this.props.cellIsClickableFn(rowIndex, columnIndex)) {
-            return (
-                <div
-                    key={key} style={style}
-                    className={cx("TableInteractive-cellWrapper cellData", {
-                        "TableInteractive-cellWrapper--firstColumn": columnIndex === 0
+        const row = rows[rowIndex];
+        const value = row[columnIndex];
+
+        const clicked = getTableCellClickedObject(data, rowIndex, columnIndex, isPivoted);
+        const isClickable = onVisualizationClick && visualizationIsClickable(clicked);
+
+        return (
+            <div
+                key={key} style={style}
+                className={cx("TableInteractive-cellWrapper", {
+                    "TableInteractive-cellWrapper--firstColumn": columnIndex === 0,
+                    "cursor-pointer": isClickable,
+                    "justify-end": isColumnRightAligned(column)
+                })}
+                onClick={isClickable && ((e) => {
+                    onVisualizationClick({ ...clicked, element: e.currentTarget });
+                })}
+            >
+                <div className="cellData">
+                    {/* using formatValue instead of <Value> here for performance. The later wraps in an extra <span> */}
+                    {formatValue(value, {
+                        column: column,
+                        type: "cell",
+                        jsx: true
                     })}
-                    onClick={this.cellClicked.bind(this, rowIndex, columnIndex)}
-                >
-                    <Value className="link" value={cellData} column={column} onResize={this.onCellResize.bind(this, columnIndex)} />
                 </div>
-            );
-        } else {
-            const { popover } = this.state;
-            const isFilterable = column.source !== "aggregation";
-            return (
-                <div
-                    key={key} style={style}
-                    className={cx("TableInteractive-cellWrapper cellData", {
-                        "TableInteractive-cellWrapper--firstColumn": columnIndex === 0,
-                        "cursor-pointer": isFilterable
-                    })}
-                    onClick={isFilterable && this.showPopover.bind(this, rowIndex, columnIndex)}
-                >
-                    <Value value={cellData} column={column} onResize={this.onCellResize.bind(this, columnIndex)} />
-                    { popover && popover.rowIndex === rowIndex && popover.columnIndex === columnIndex &&
-                        <QuickFilterPopover
-                            column={cols[popover.columnIndex]}
-                            onFilter={this.popoverFilterClicked.bind(this, rowIndex, columnIndex)}
-                            onClose={this.onClosePopover}
-                        />
-                    }
-                </div>
-            );
-        }
+            </div>
+        );
     }
 
     tableHeaderRenderer = ({ key, style, columnIndex }: CellRendererProps) => {
-        const { sort, data: { cols }} = this.props;
-        const isSortable = this.isSortable();
+        const { sort, isPivoted, onVisualizationClick, visualizationIsClickable } = this.props;
+        // $FlowFixMe: not sure why flow has a problem with this
+        const { cols } = this.props.data;
         const column = cols[columnIndex];
 
         let columnTitle = getFriendlyName(column);
@@ -307,26 +259,44 @@ export default class TableInteractive extends Component<*, Props, State> {
             columnTitle = "Unset";
         }
 
+        let clicked;
+        if (isPivoted) {
+            // if it's a pivot table, the first column is
+            if (columnIndex >= 0) {
+                clicked = column._dimension;
+            }
+        } else {
+            clicked = { column };
+        }
+
+        const isClickable = onVisualizationClick && visualizationIsClickable(clicked);
+        const isSortable = isClickable && column.source;
+        const isRightAligned = isColumnRightAligned(column);
+
+        const isSorted = sort && sort[0] && sort[0][0] === column.id;
+        const isAscending = sort && sort[0] && sort[0][1] === "ascending";
+
         return (
             <div
                 key={key}
                 style={{ ...style, overflow: "visible" /* ensure resize handle is visible */ }}
                 className={cx("TableInteractive-cellWrapper TableInteractive-headerCellData", {
                     "TableInteractive-cellWrapper--firstColumn": columnIndex === 0,
-                    "TableInteractive-headerCellData--sorted": (sort && sort[0] && sort[0][0] === column.id),
+                    "TableInteractive-headerCellData--sorted": isSorted,
+                    "cursor-pointer": isClickable,
+                    "justify-end": isRightAligned
+                })}
+                onClick={isClickable && ((e) => {
+                    onVisualizationClick({ ...clicked, element: e.currentTarget });
                 })}
             >
-                <div
-                    className={cx("cellData", { "cursor-pointer": isSortable })}
-                    onClick={isSortable && this.setSort.bind(this, column)}
-                >
+                <div className="cellData">
+                    {isSortable && isRightAligned &&
+                        <Icon className="Icon mr1" name={isAscending ? "chevronup" : "chevrondown"} size={8} />
+                    }
                     {columnTitle}
-                    {isSortable &&
-                        <Icon
-                            className="Icon ml1"
-                            name={sort && sort[0] && sort[0][1] === "ascending" ? "chevronup" : "chevrondown"}
-                            size={8}
-                        />
+                    {isSortable && !isRightAligned &&
+                        <Icon className="Icon ml1" name={isAscending ? "chevronup" : "chevrondown"} size={8} />
                     }
                 </div>
                 <Draggable

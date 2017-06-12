@@ -1,12 +1,12 @@
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 import { Link } from "react-router";
 
 import QueryModeButton from "./QueryModeButton.jsx";
 
 import ActionButton from 'metabase/components/ActionButton.jsx';
-import AddToDashSelectDashModal from 'metabase/components/AddToDashSelectDashModal.jsx';
+import AddToDashSelectDashModal from 'metabase/containers/AddToDashSelectDashModal.jsx';
 import ButtonBar from "metabase/components/ButtonBar.jsx";
-import DeleteQuestionModal from 'metabase/components/DeleteQuestionModal.jsx';
 import HeaderBar from "metabase/components/HeaderBar.jsx";
 import HistoryModal from "metabase/components/HistoryModal.jsx";
 import Icon from "metabase/components/Icon.jsx";
@@ -15,6 +15,7 @@ import ModalWithTrigger from "metabase/components/ModalWithTrigger.jsx";
 import QuestionSavedModal from 'metabase/components/QuestionSavedModal.jsx';
 import Tooltip from "metabase/components/Tooltip.jsx";
 import MoveToCollection from "metabase/questions/containers/MoveToCollection.jsx";
+import ArchiveQuestionModal from "metabase/query_builder/containers/ArchiveQuestionModal"
 
 import SaveQuestionModal from 'metabase/containers/SaveQuestionModal.jsx';
 
@@ -23,10 +24,11 @@ import { CardApi, RevisionApi } from "metabase/services";
 import MetabaseAnalytics from "metabase/lib/analytics";
 import Query from "metabase/lib/query";
 import { cancelable } from "metabase/lib/promise";
-import Urls from "metabase/lib/urls";
+import * as Urls from "metabase/lib/urls";
 
 import cx from "classnames";
 import _ from "underscore";
+
 
 export default class QueryHeader extends Component {
     constructor(props, context) {
@@ -61,8 +63,8 @@ export default class QueryHeader extends Component {
 
     componentWillUnmount() {
         clearTimeout(this.timeout);
-        if (this.requesetPromise) {
-            this.requesetPromise.cancel();
+        if (this.requestPromise) {
+            this.requestPromise.cancel();
         }
     }
 
@@ -88,8 +90,8 @@ export default class QueryHeader extends Component {
         }
 
         // TODO: reduxify
-        this.requesetPromise = cancelable(CardApi.create(card));
-        return this.requesetPromise.then(newCard => {
+        this.requestPromise = cancelable(CardApi.create(card));
+        return this.requestPromise.then(newCard => {
             this.props.notifyCardCreatedFn(newCard);
 
             this.setState({
@@ -113,8 +115,8 @@ export default class QueryHeader extends Component {
         }
 
         // TODO: reduxify
-        this.requesetPromise = cancelable(CardApi.update(card));
-        return this.requesetPromise.then(updatedCard => {
+        this.requestPromise = cancelable(CardApi.update(card));
+        return this.requestPromise.then(updatedCard => {
             if (this.props.fromUrl) {
                 this.onGoBack();
                 return;
@@ -186,7 +188,6 @@ export default class QueryHeader extends Component {
         if (isNew && isDirty) {
             buttonSections.push([
                 <ModalWithTrigger
-                    full
                     form
                     key="save"
                     ref="saveModal"
@@ -256,22 +257,7 @@ export default class QueryHeader extends Component {
 
                 // delete button
                 buttonSections.push([
-                    <Tooltip key="delete" tooltip="Delete">
-                        <ModalWithTrigger
-                            ref="deleteModal"
-                            triggerElement={
-                                <span className="text-brand-hover">
-                                    <Icon name="trash" size={16} />
-                                </span>
-                            }
-                        >
-                            <DeleteQuestionModal
-                                card={this.props.card}
-                                deleteCardFn={this.onDelete}
-                                onClose={() => this.refs.deleteModal.toggle()}
-                            />
-                        </ModalWithTrigger>
-                    </Tooltip>
+                    <ArchiveQuestionModal questionId={this.props.card.id} />
                 ]);
 
                 buttonSections.push([
@@ -288,6 +274,10 @@ export default class QueryHeader extends Component {
                         <MoveToCollection
                             questionId={this.props.card.id}
                             initialCollectionId={this.props.card && this.props.card.collection_id}
+                            setCollection={(questionId, collection) => {
+                                this.props.onSetCardAttribute('collection', collection)
+                                this.props.onSetCardAttribute('collection_id', collection.id)
+                            }}
                         />
                     </ModalWithTrigger>
                 ]);
@@ -295,7 +285,7 @@ export default class QueryHeader extends Component {
         }
 
         // parameters
-        if (Query.isNative(this.props.query) && database && _.contains(database.features, "native-parameters")) {
+        if (Query.isNative(card && card.dataset_query) && database && _.contains(database.features, "native-parameters")) {
             const parametersButtonClasses = cx('transition-color', {
                 'text-brand': this.props.uiControls.isShowingTemplateTagsEditor,
                 'text-brand-hover': !this.props.uiControls.isShowingTemplateTagsEditor

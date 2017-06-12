@@ -16,7 +16,7 @@
    glip-password  (s/maybe su/NonBlankString)}
   (check-superuser)
   (try
-    ;; just check that channels.list doesn't throw an exception (a.k.a. that the token works)
+    ;; Here we would check if Glip credentials were correct if only I would refactor existing Glip integration
     (setting/set-many! glip-settings)
     {:ok true}
     (catch clojure.lang.ExceptionInfo info

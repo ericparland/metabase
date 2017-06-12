@@ -1,6 +1,7 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import CheckBox from 'metabase/components/CheckBox.jsx';
 import ListSearchField from "metabase/components/ListSearchField.jsx";
@@ -18,7 +19,7 @@ type SelectOption = {
 type Props = {
     options: Array<SelectOption>,
     values: Array<string>,
-    onValuesChange: (values: any) => void,
+    onValuesChange: (values: any[]) => void,
     placeholder?: string,
     multi?: bool
 }
@@ -28,7 +29,7 @@ type State = {
     searchRegex: ?RegExp,
 }
 
-export default class SelectPicker extends Component<*, Props, State> {
+export default class SelectPicker extends Component {
     state: State;
     props: Props;
 

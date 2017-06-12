@@ -115,9 +115,12 @@ export const isNumericBaseType = (field) => isa(field && field.base_type, TYPE.N
 // ZipCode, ID, etc derive from Number but should not be formatted as numbers
 export const isNumber = (field) => field && isNumericBaseType(field) && (field.special_type == null || field.special_type === TYPE.Number);
 
-export const isCoordinate = (field) => isa(field && field.special_type, TYPE.Coordinate);
-export const isLatitude = (field) => isa(field && field.special_type, TYPE.Latitude);
-export const isLongitude = (field) => isa(field && field.special_type, TYPE.Longitude);
+export const isAddress      = (field) => isa(field && field.special_type, TYPE.Address);
+export const isState        = (field) => isa(field && field.special_type, TYPE.State);
+export const isCountry      = (field) => isa(field && field.special_type, TYPE.Country);
+export const isCoordinate   = (field) => isa(field && field.special_type, TYPE.Coordinate);
+export const isLatitude     = (field) => isa(field && field.special_type, TYPE.Latitude);
+export const isLongitude    = (field) => isa(field && field.special_type, TYPE.Longitude);
 
 // operator argument constructors:
 
@@ -166,7 +169,7 @@ function equivalentArgument(field, table) {
 
     if (isCategory(field)) {
         if (table.field_values && field.id in table.field_values && table.field_values[field.id].length > 0) {
-            let validValues = table.field_values[field.id];
+            let validValues = [...table.field_values[field.id]];
             // this sort function works for both numbers and strings:
             validValues.sort((a, b) => a === b ? 0 : (a < b ? -1 : 1));
             return {
@@ -472,7 +475,7 @@ export function getAggregator(short) {
     return _.findWhere(Aggregators, { short: short });
 }
 
-function getBreakouts(fields) {
+export function getBreakouts(fields) {
     var result = populateFields(BreakoutAggregator, fields);
     result.fields = result.fields[0];
     result.validFieldsFilter = result.validFieldsFilters[0];
@@ -481,7 +484,7 @@ function getBreakouts(fields) {
 
 export function addValidOperatorsToFields(table) {
     for (let field of table.fields) {
-        field.valid_operators = getOperators(field, table);
+        field.operators = getOperators(field, table);
     }
     table.aggregation_options = getAggregatorsWithFields(table);
     table.breakout_options = getBreakouts(table.fields);

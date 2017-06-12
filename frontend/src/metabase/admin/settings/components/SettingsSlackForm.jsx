@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import MetabaseAnalytics from "metabase/lib/analytics";
 import MetabaseUtils from "metabase/lib/utils";
@@ -196,10 +197,10 @@ export default class SettingsSlackForm extends Component {
             <form noValidate>
                 <div className="px2" style={{maxWidth: "585px"}}>
                     <h1>
-                        RC Data Tool
+                        Metabase
                         <RetinaImage
                             className="mx1"
-                            src="/app/img/slack_emoji.png"
+                            src="app/assets/img/slack_emoji.png"
                             width={79}
                             forceOriginalDimensions={false /* broken in React v0.13 */}
                         />

@@ -1,5 +1,6 @@
 /* eslint "react/prop-types": "warn" */
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import RetinaImage from "react-retina-image";
 
@@ -16,12 +17,12 @@ export default class WhatsAPulse extends Component {
                 <div className="mx4">
                     <RetinaImage
                         width={574}
-                        src="/app/img/pulse_empty_illustration.png"
+                        src="app/assets/img/pulse_empty_illustration.png"
                         forceOriginalDimensions={false}
                     />
                 </div>
                 <div className="h3 my3 text-centered text-grey-2 text-bold" style={{maxWidth: "500px"}}>
-                    Pulses let you send data from RC Data Tool to email or Glip on the schedule of your choice.
+                    Pulses let you send data from Metabase to email, Slack or Glip on the schedule of your choice.
                 </div>
                 {this.props.button}
             </div>

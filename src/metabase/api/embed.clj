@@ -14,25 +14,26 @@
       {:resource {:question  <card-id>
                   :dashboard <dashboard-id>}
        :params   <params>}"
-  ;; TODO - switch resource.question back to resource.card
-  (:require (clojure [set :as set]
-                     [string :as str])
+  (:require [clojure
+             [set :as set]
+             [string :as str]]
             [clojure.tools.logging :as log]
             [compojure.core :refer [GET]]
             [medley.core :as m]
-            [schema.core :as s]
-            [toucan.db :as db]
-            (metabase.api [common :as api]
-                          [dataset :as dataset-api]
-                          [public :as public-api])
-            (metabase.models [card :refer [Card]]
-                             [dashboard :refer [Dashboard]]
-                             [dashboard-card :refer [DashboardCard]])
-            [metabase.models.setting :as setting]
+            [metabase.api
+             [common :as api]
+             [dataset :as dataset-api]
+             [public :as public-api]]
+            [metabase.models
+             [card :refer [Card]]
+             [dashboard :refer [Dashboard]]
+             [dashboard-card :refer [DashboardCard]]]
             [metabase.util :as u]
-            (metabase.util [embed :as eu]
-                           [schema :as su])))
-
+            [metabase.util
+             [embed :as eu]
+             [schema :as su]]
+            [schema.core :as s]
+            [toucan.db :as db]))
 
 ;;; ------------------------------------------------------------ Param Checking ------------------------------------------------------------
 
@@ -125,12 +126,14 @@
   "Transforms native query's `template_tags` into `parameters`."
   [card]
   ;; NOTE: this should mirror `getTemplateTagParameters` in frontend/src/metabase/meta/Parameter.js
-  (for [[_ {tag-type :type, :as tag}] (get-in card [:dataset_query :native :template_tags])
+  (for [[_ {tag-type :type, widget-type :widget_type, :as tag}] (get-in card [:dataset_query :native :template_tags])
         :when                         (and tag-type
-                                           (not= tag-type "dimension"))]
+                                           (or widget-type (not= tag-type "dimension")))]
     {:id      (:id tag)
-     :type    (if (= tag-type "date") "date/single" "category")
-     :target  ["variable" ["template-tag" (:name tag)]]
+     :type    (or widget-type (if (= tag-type "date") "date/single" "category"))
+     :target  (if (= tag-type "dimension")
+                ["dimension" ["template-tag" (:name tag)]]
+                ["variable" ["template-tag" (:name tag)]])
      :name    (:display_name tag)
      :slug    (:name tag)
      :default (:default tag)}))
@@ -191,7 +194,7 @@
   {:pre [(integer? card-id) (u/maybe? map? embedding-params) (map? token-params) (map? query-params)]}
   (let [parameter-values (validate-params embedding-params token-params query-params)
         parameters       (apply-parameter-values (resolve-card-parameters card-id) parameter-values)]
-    (apply public-api/run-query-for-card-with-id card-id parameters options)))
+    (apply public-api/run-query-for-card-with-id card-id parameters, :context :embedded-question, options)))
 
 
 ;;; ------------------------------------------------------------ Dashboard Fns used by both /api/embed and /api/preview_embed ------------------------------------------------------------
@@ -215,7 +218,7 @@
   {:pre [(integer? dashboard-id) (integer? dashcard-id) (integer? card-id) (u/maybe? map? embedding-params) (map? token-params) (map? query-params)]}
   (let [parameter-values (validate-params embedding-params token-params query-params)
         parameters       (apply-parameter-values (resolve-dashboard-parameters dashboard-id dashcard-id card-id) parameter-values)]
-    (public-api/public-dashcard-results dashboard-id card-id parameters)))
+    (public-api/public-dashcard-results dashboard-id card-id parameters, :context :embedded-dashboard)))
 
 
 ;;; ------------------------------------------------------------ Other /api/embed-specific utility fns ------------------------------------------------------------
@@ -227,6 +230,7 @@
   ([object]
    (api/check-embedding-enabled)
    (api/check-404 object)
+   (api/check-not-archived object)
    (api/check (:enable_embedding object)
      [400 "Embedding is not enabled for this object."])))
 
@@ -272,16 +276,12 @@
   (run-query-for-unsigned-token (eu/unsign token) query-params))
 
 
-(api/defendpoint GET "/card/:token/query/csv"
-  "Like `GET /api/embed/card/query`, but returns the results as CSV."
-  [token & query-params]
-  (dataset-api/as-csv (run-query-for-unsigned-token (eu/unsign token) query-params, :constraints nil)))
-
-
-(api/defendpoint GET "/card/:token/query/json"
-  "Like `GET /api/embed/card/query`, but returns the results as JSOn."
-  [token & query-params]
-  (dataset-api/as-json (run-query-for-unsigned-token (eu/unsign token) query-params, :constraints nil)))
+(api/defendpoint GET ["/card/:token/query/:export-format", :export-format dataset-api/export-format-regex]
+  "Like `GET /api/embed/card/query`, but returns the results as a file in the specified format."
+  [token export-format & query-params]
+  {export-format dataset-api/ExportFormat}
+  (dataset-api/as-format export-format
+    (run-query-for-unsigned-token (eu/unsign token) query-params, :constraints nil)))
 
 
 ;;; ------------------------------------------------------------ /api/embed/dashboard endpoints ------------------------------------------------------------

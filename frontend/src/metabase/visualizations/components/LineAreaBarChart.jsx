@@ -1,10 +1,10 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import CardRenderer from "./CardRenderer.jsx";
 import LegendHeader from "./LegendHeader.jsx";
-import ChartTooltip from "./ChartTooltip.jsx";
 
 import "./LineAreaBarChart.css";
 
@@ -41,9 +41,11 @@ for (let i = 0; i < MAX_SERIES; i++) {
     addCSSRule(`.LineAreaBarChart.mute-${i} svg:not(.stacked) .row`, MUTE_STYLE);
 }
 
-import type { VisualizationProps } from "metabase/visualizations";
+import type { VisualizationProps } from "metabase/meta/types/Visualization";
 
-export default class LineAreaBarChart extends Component<*, VisualizationProps, *> {
+export default class LineAreaBarChart extends Component {
+    props: VisualizationProps;
+
     static identifier: string;
     static renderer: (element: Element, props: VisualizationProps) => any;
 
@@ -56,8 +58,12 @@ export default class LineAreaBarChart extends Component<*, VisualizationProps, *
         return getChartTypeFromData(cols, rows, false) != null;
     }
 
-    static checkRenderable([{ data: { cols, rows} }], settings) {
-        if (rows.length < 1) { throw new MinRowsError(1, rows.length); }
+    static checkRenderable(series, settings) {
+        const singleSeriesHasNoRows = ({ data: { cols, rows} }) => rows.length < 1;
+        if (_.every(series, singleSeriesHasNoRows)) {
+             throw new MinRowsError(1, 0);
+        }
+
         const dimensions = (settings["graph.dimensions"] || []).filter(name => name);
         const metrics = (settings["graph.metrics"] || []).filter(name => name);
         if (dimensions.length < 1 || metrics.length < 1) {
@@ -176,19 +182,24 @@ export default class LineAreaBarChart extends Component<*, VisualizationProps, *
     }
 
     render() {
-        const { series, hovered, showTitle, actionButtons, linkToCard } = this.props;
+        const { series, hovered, showTitle, actionButtons, onChangeCardAndRun, onVisualizationClick, visualizationIsClickable } = this.props;
 
         const settings = this.getSettings();
 
         let titleHeaderSeries, multiseriesHeaderSeries;
 
+        // $FlowFixMe
         let originalSeries = series._raw || series;
         let cardIds = _.uniq(originalSeries.map(s => s.card.id))
+        const isComposedOfMultipleQuestions = cardIds.length > 1;
 
         if (showTitle && settings["card.title"]) {
             titleHeaderSeries = [{ card: {
                 name: settings["card.title"],
-                id: cardIds.length === 1 ? cardIds[0] : null
+                ...(isComposedOfMultipleQuestions ? {} : {
+                    id: cardIds[0],
+                    dataset_query: originalSeries[0].card.dataset_query
+                }),
             }}];
         }
 
@@ -204,7 +215,9 @@ export default class LineAreaBarChart extends Component<*, VisualizationProps, *
                         series={titleHeaderSeries}
                         description={settings["card.description"]}
                         actionButtons={actionButtons}
-                        linkToCard={linkToCard}
+                        // If a dashboard card is composed of multiple questions, its custom card title
+                        // shouldn't act as a link as it's ambiguous that which question it should open
+                        onChangeCardAndRun={ isComposedOfMultipleQuestions ? null : onChangeCardAndRun }
                     />
                 : null }
                 { multiseriesHeaderSeries || (!titleHeaderSeries && actionButtons) ? // always show action buttons if we have them
@@ -215,7 +228,9 @@ export default class LineAreaBarChart extends Component<*, VisualizationProps, *
                         hovered={hovered}
                         onHoverChange={this.props.onHoverChange}
                         actionButtons={!titleHeaderSeries ? actionButtons : null}
-                        linkToCard={linkToCard}
+                        onChangeCardAndRun={onChangeCardAndRun}
+                        onVisualizationClick={onVisualizationClick}
+                        visualizationIsClickable={visualizationIsClickable}
                     />
                 : null }
                 <CardRenderer
@@ -226,7 +241,6 @@ export default class LineAreaBarChart extends Component<*, VisualizationProps, *
                     maxSeries={MAX_SERIES}
                     renderer={this.constructor.renderer}
                 />
-                <ChartTooltip series={series} hovered={hovered} />
             </div>
         );
     }
@@ -296,12 +310,19 @@ function transformSingleSeries(s, series, seriesIndex) {
                 ].filter(n => n).join(": "),
                 _transformed: true,
                 _breakoutValue: breakoutValue,
-                _breakoutColumn: cols[seriesColumnIndex]
+                _breakoutColumn: cols[seriesColumnIndex],
             },
             data: {
                 rows: breakoutRowsByValue.get(breakoutValue),
                 cols: rowColumnIndexes.map(i => cols[i]),
                 _rawCols: cols
+            },
+            // for when the legend header for the breakout is clicked
+            clicked: {
+                dimensions: [{
+                    value: breakoutValue,
+                    column: cols[seriesColumnIndex]
+                }]
             }
         }));
     } else {
@@ -319,6 +340,7 @@ function transformSingleSeries(s, series, seriesIndex) {
                         metricColumnIndexes.length > 1 && getFriendlyName(col)
                     ].filter(n => n).join(": "),
                     _transformed: true,
+                    _seriesIndex: seriesIndex,
                 },
                 data: {
                     rows: rows.map((row, rowIndex) => {

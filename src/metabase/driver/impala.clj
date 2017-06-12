@@ -41,7 +41,6 @@
 (defn- trunc
   "Truncate a datetime, also see:
    https://www.cloudera.com/documentation/enterprise/5-8-x/topics/impala_datetime_functions.html
-
       (trunc :day v) -> TRUNC(v, 'day')"
   [format-template v]
   (hsql/call :trunc v (hx/literal format-template)))
@@ -49,7 +48,6 @@
 (defn- extract-old
   "Extract value from datetime field), also see:
    https://www.cloudera.com/documentation/enterprise/5-8-x/topics/impala_datetime_functions.html
-
       (extract :day v) -> extract(v, 'dd')"
   [format-template v]
   (hsql/call :extract v (hx/literal format-template)))
@@ -64,7 +62,7 @@
     :hour            (trunc :HH v)
     :hour-of-day     (hsql/call :extract :hour v)
     :day             (trunc :dd v)
-    :day-of-week     (hsql/call :dayofweek v) 
+    :day-of-week     (hsql/call :dayofweek v)
     :day-of-month    (hsql/call :dayofmonth v)
     :day-of-year     (hsql/call :dayofyear v)
     ;; trunc "day" gets start day of the week
@@ -154,7 +152,7 @@
                                                            {:name        "connProperties"  ;; Impala driver supports many additional properties
                                                                                            ;; These properties are semicolon separated.
                                                                                            ;; An overview of available properties can be found at:
-                                                                                           ;; http://www.cloudera.com/documentation/other/connectors/impala-jdbc/latest/Cloudera-JDBC-Driver-for-Impala-Install-Guide.pdf     
+                                                                                           ;; http://www.cloudera.com/documentation/other/connectors/impala-jdbc/latest/Cloudera-JDBC-Driver-for-Impala-Install-Guide.pdf
                                                            :display-name "Connection attributes"
                                                            :placeholder  "KrbRealm=EXAMPLE.COM;KrbHostFQDN=impala.example.com;KrbServiceName=impala"}])
           :humanize-connection-error-message (u/drop-first-arg humanize-connection-error-message)})
@@ -173,4 +171,3 @@
 
 
 (driver/register-driver! :impala (ImpalaDriver.))
-

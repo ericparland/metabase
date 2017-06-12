@@ -10,6 +10,7 @@ import { isFK, TYPE } from "metabase/lib/types";
 import { stripId } from "metabase/lib/formatting";
 import { format as formatExpression } from "metabase/lib/expressions/formatter";
 
+import * as Table from "./query/table";
 
 import * as Q from "./query/query";
 import { mbql, mbqlEq } from "./query/util";
@@ -270,7 +271,7 @@ var Query = {
     },
 
     getExpressions(query) {
-        return query.expressions;
+        return query.expressions || {};
     },
 
     setExpression(query, name, expression) {
@@ -389,7 +390,7 @@ var Query = {
                 // TODO: we need to do something better here because filtering depends on knowing a sensible type for the field
                 base_type: TYPE.Integer,
                 operators_lookup: {},
-                valid_operators: [],
+                operators: [],
                 active: true,
                 fk_target_field_id: null,
                 parent_id: null,
@@ -398,8 +399,8 @@ var Query = {
                 target: null,
                 visibility_type: "normal"
             };
-            fieldDef.valid_operators = getOperators(fieldDef, tableDef);
-            fieldDef.operators_lookup = createLookupByProperty(fieldDef.valid_operators, "name");
+            fieldDef.operators = getOperators(fieldDef, tableDef);
+            fieldDef.operators_lookup = createLookupByProperty(fieldDef.operators, "name");
 
             return {
                 table: tableDef,
@@ -744,18 +745,6 @@ export const BreakoutClause = {
     }
 }
 
-const Table = {
-    getField(table, fieldId) {
-        if (table) {
-            // sometimes we populate fields_lookup, sometimes we don't :(
-            if (table.fields_lookup) {
-                return table.fields_lookup[fieldId];
-            } else {
-                return _.findWhere(table.fields, { id: fieldId });
-            }
-        }
-    }
-}
 
 function joinList(list, joiner) {
     return _.flatten(list.map((l, i) => i === list.length - 1 ? [l] : [l, joiner]), true);

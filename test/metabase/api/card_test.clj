@@ -1,29 +1,32 @@
 (ns metabase.api.card-test
   "Tests for /api/card endpoints."
   (:require [cheshire.core :as json]
+            [dk.ative.docjure.spreadsheet :as spreadsheet]
             [expectations :refer :all]
             [medley.core :as m]
-            [toucan.db :as db]
-            [toucan.util.test :as tt]
-            [metabase.http-client :refer :all, :as http]
-            [metabase.middleware :as middleware]
-            (metabase.models [card :refer [Card]]
-                             [card-favorite :refer [CardFavorite]]
-                             [card-label :refer [CardLabel]]
-                             [collection :refer [Collection]]
-                             [database :refer [Database]]
-                             [label :refer [Label]]
-                             [permissions :refer [Permissions], :as perms]
-                             [permissions-group :as perms-group]
-                             [table :refer [Table]]
-                             [view-log :refer [ViewLog]])
-            [metabase.test.data :refer :all]
+            [metabase
+             [http-client :as http :refer :all]
+             [middleware :as middleware]
+             [util :as u]]
+            [metabase.models
+             [card :refer [Card]]
+             [card-favorite :refer [CardFavorite]]
+             [card-label :refer [CardLabel]]
+             [collection :refer [Collection]]
+             [database :refer [Database]]
+             [label :refer [Label]]
+             [permissions :as perms]
+             [permissions-group :as perms-group]
+             [table :refer [Table]]
+             [view-log :refer [ViewLog]]]
+            [metabase.test
+             [data :as data :refer :all]
+             [util :as tu :refer [match-$ random-name]]]
             [metabase.test.data.users :refer :all]
-            [metabase.test.util :refer [match-$ random-name obj->json->obj], :as tu]
-            [metabase.util :as u])
-  (:import java.util.UUID))
-
-;;; CARD LIFECYCLE
+            [toucan.db :as db]
+            [toucan.util.test :as tt])
+  (:import java.io.ByteArrayInputStream
+           java.util.UUID))
 
 ;;; Helpers
 
@@ -36,9 +39,41 @@
    :embedding_params  nil
    :made_public_by_id nil
    :public_uuid       nil
-   :query_type        "query"})
+   :query_type        "query"
+   :cache_ttl         nil})
 
-;; ## GET /api/card
+(defn- do-with-self-cleaning-random-card-name
+  "Generate a random card name (or use CARD-NAME), pass it to F, then delete any Cards with that name afterwords."
+  [f & [card-name]]
+  (let [card-name (or card-name (random-name))]
+    (try (f card-name)
+         (finally (db/delete! Card :name card-name)))))
+
+(defmacro ^:private with-self-cleaning-random-card-name
+  "Generate a random card name (or optionally use CARD-NAME) and bind it to CARD-NAME-BINDING.
+   Execute BODY and then delete and Cards with that name afterwards."
+  {:style/indent 1, :arglists '([[card-name-binding] & body] [[card-name-binding card-name] & body])}
+  [[card-name-binding card-name] & body]
+  `(do-with-self-cleaning-random-card-name (fn [~card-name-binding]
+                                             ~@body)
+                                           ~@(when card-name [card-name])))
+
+(defn- mbql-count-query [database-id table-id]
+  {:database database-id
+   :type     "query"
+   :query    {:source-table table-id, :aggregation {:aggregation-type "count"}}})
+
+(defn- card-with-name-and-query [card-name query]
+  {:name                   card-name
+   :display                "scalar"
+   :dataset_query          query
+   :visualization_settings {:global {:title nil}}})
+
+
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                               FETCHING CARDS & FILTERING                                               |
+;;; +------------------------------------------------------------------------------------------------------------------------+
+
 ;; Filter cards by database
 (expect
   [true
@@ -163,15 +198,18 @@
             :visualization_settings {:global {:title nil}}
             :database_id            database-id ; these should be inferred automatically
             :table_id               table-id})
-    ;; make sure we clean up after ourselves as well and delete the Card we create
-    (dissoc (u/prog1 ((user->client :rasta) :post 200 "card" {:name                   card-name
-                                                              :display                "scalar"
-                                                              :dataset_query          (mbql-count-query database-id table-id)
-                                                              :visualization_settings {:global {:title nil}}})
-              (db/delete! Card :id (u/get-id <>)))
-            :created_at :updated_at :id)))
+    (with-self-cleaning-random-card-name [_ card-name]
+      (dissoc ((user->client :rasta) :post 200 "card" {:name                   card-name
+                                                       :display                "scalar"
+                                                       :dataset_query          (mbql-count-query database-id table-id)
+                                                       :visualization_settings {:global {:title nil}}})
+              :created_at :updated_at :id))))
 
-;; ## GET /api/card/:id
+
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                FETCHING A SPECIFIC CARD                                                |
+;;; +------------------------------------------------------------------------------------------------------------------------+
+
 ;; Test that we can fetch a card
 (tt/expect-with-temp [Database  [{database-id :id}]
                       Table     [{table-id :id}   {:db_id database-id}]
@@ -205,17 +243,20 @@
   ((user->client :rasta) :get 200 (str "card/" (u/get-id card))))
 
 ;; Check that a user without permissions isn't allowed to fetch the card
-(tt/expect-with-temp [Database  [{database-id :id}]
-                      Table     [{table-id :id}    {:db_id database-id}]
-                      Card      [card              {:dataset_query (mbql-count-query database-id table-id)}]]
+(expect
   "You don't have permissions to do that."
-  (do
+  (tt/with-temp* [Database [{database-id :id}]
+                  Table    [{table-id :id}    {:db_id database-id}]
+                  Card     [card              {:dataset_query (mbql-count-query database-id table-id)}]]
     ;; revoke permissions for default group to this database
     (perms/delete-related-permissions! (perms-group/all-users) (perms/object-path database-id))
     ;; now a non-admin user shouldn't be able to fetch this card
     ((user->client :rasta) :get 403 (str "card/" (u/get-id card)))))
 
-;; ## PUT /api/card/:id
+
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                    UPDATING A CARD                                                     |
+;;; +------------------------------------------------------------------------------------------------------------------------+
 
 ;; updating a card that doesn't exist should give a 404
 (expect "Not found."
@@ -245,6 +286,20 @@
       [(archived?)
        (set-archived! true)
        (set-archived! false)])))
+
+;; Can we clear the description of a Card? (#4738)
+(expect
+  nil
+  (with-temp-card [card {:description "What a nice Card"}]
+    ((user->client :rasta) :put 200 (str "card/" (u/get-id card)) {:description nil})
+    (db/select-one-field :description Card :id (u/get-id card))))
+
+;; description should be blankable as well
+(expect
+  ""
+  (with-temp-card [card {:description "What a nice Card"}]
+    ((user->client :rasta) :put 200 (str "card/" (u/get-id card)) {:description ""})
+    (db/select-one-field :description Card :id (u/get-id card))))
 
 ;; Can we update a card's embedding_params?
 (expect
@@ -277,10 +332,14 @@
     (Card id)))
 
 ;; deleting a card that doesn't exist should return a 404 (#1957)
-(expect "Not found."
+(expect
+  "Not found."
   ((user->client :crowberto) :delete 404 "card/12345"))
 
-;; # CARD FAVORITE STUFF
+
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                       FAVORITING                                                       |
+;;; +------------------------------------------------------------------------------------------------------------------------+
 
 ;; Helper Functions
 (defn- fave? [card]
@@ -323,6 +382,10 @@
          (fave? card))]))
 
 
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                         LABELS                                                         |
+;;; +------------------------------------------------------------------------------------------------------------------------+
+
 ;;; POST /api/card/:id/labels
 ;; Check that we can update card labels
 (tt/expect-with-temp [Card  [{card-id :id}]
@@ -341,6 +404,10 @@
      (update-labels [label-1-id label-2-id]) ; (2)
      (update-labels [])]))                   ; (3)
 
+
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                CSV/JSON/XLSX DOWNLOADS                                                 |
+;;; +------------------------------------------------------------------------------------------------------------------------+
 
 ;;; POST /api/:card-id/query/csv
 
@@ -382,20 +449,31 @@
       (perms/grant-native-read-permissions! (perms-group/all-users) database-id)
       ((user->client :rasta) :post 200 (format "card/%d/query/json" (u/get-id card))))))
 
+;;; Tests for GET /api/card/:id/xlsx
+(expect
+  [{:col "COUNT(*)"} {:col 75.0}]
+  (do-with-temp-native-card
+    (fn [database-id card]
+      (perms/grant-native-read-permissions! (perms-group/all-users) database-id)
+      (->> ((user->client :rasta) :post 200 (format "card/%d/query/xlsx" (u/get-id card)) {:request-options {:as :byte-array}})
+           ByteArrayInputStream.
+           spreadsheet/load-workbook
+           (spreadsheet/select-sheet "Query result")
+           (spreadsheet/select-columns {:A :col})))))
 
-;;; Test GET /api/card/:id/query/csv & GET /api/card/:id/json **WITH PARAMETERS**
+;;; Test GET /api/card/:id/query/csv & GET /api/card/:id/json & GET /api/card/:id/query/xlsx **WITH PARAMETERS**
 
 (defn- do-with-temp-native-card-with-params {:style/indent 0} [f]
   (tt/with-temp* [Database  [{database-id :id} {:details (:details (Database (id))), :engine :h2}]
-               Table     [{table-id :id}    {:db_id database-id, :name "VENUES"}]
-               Card      [card              {:dataset_query {:database database-id
-                                                             :type     :native
-                                                             :native   {:query         "SELECT COUNT(*) FROM VENUES WHERE CATEGORY_ID = {{category}};"
-                                                                        :template_tags {:category {:id           "a9001580-3bcc-b827-ce26-1dbc82429163"
-                                                                                                   :name         "category"
-                                                                                                   :display_name "Category"
-                                                                                                   :type         "number"
-                                                                                                   :required     true}}}}}]]
+                  Table     [{table-id :id}    {:db_id database-id, :name "VENUES"}]
+                  Card      [card              {:dataset_query {:database database-id
+                                                                :type     :native
+                                                                :native   {:query         "SELECT COUNT(*) FROM VENUES WHERE CATEGORY_ID = {{category}};"
+                                                                           :template_tags {:category {:id           "a9001580-3bcc-b827-ce26-1dbc82429163"
+                                                                                                      :name         "category"
+                                                                                                      :display_name "Category"
+                                                                                                      :type         "number"
+                                                                                                      :required     true}}}}}]]
     (f database-id card)))
 
 (def ^:private ^:const ^String encoded-params
@@ -418,6 +496,18 @@
     (fn [database-id card]
       ((user->client :rasta) :post 200 (format "card/%d/query/json?parameters=%s" (u/get-id card) encoded-params)))))
 
+;; XLSX
+(expect
+  [{:col "COUNT(*)"} {:col 8.0}]
+  (do-with-temp-native-card-with-params
+    (fn [database-id card]
+      (->> ((user->client :rasta) :post 200 (format "card/%d/query/xlsx?parameters=%s" (u/get-id card) encoded-params)
+            {:request-options {:as :byte-array}})
+           ByteArrayInputStream.
+           spreadsheet/load-workbook
+           (spreadsheet/select-sheet "Query result")
+           (spreadsheet/select-columns {:A :col})))))
+
 
 ;;; +------------------------------------------------------------------------------------------------------------------------+
 ;;; |                                                      COLLECTIONS                                                       |
@@ -426,25 +516,19 @@
 ;; Make sure we can create a card and specify its `collection_id` at the same time
 (tt/expect-with-temp [Collection [collection]]
   (u/get-id collection)
-  (do
+  (with-self-cleaning-random-card-name [card-name]
     (perms/grant-collection-readwrite-permissions! (perms-group/all-users) collection)
-    (let [{card-id :id} ((user->client :rasta) :post 200 "card" {:name                   "My Cool Card"
-                                                                 :display                "scalar"
-                                                                 :dataset_query          (mbql-count-query (id) (id :venues))
-                                                                 :visualization_settings {:global {:title nil}}
-                                                                 :collection_id          (u/get-id collection)})]
-      ;; make sure we clean up after ourselves and delete the newly created Card
-      (u/prog1 (db/select-one-field :collection_id Card :id card-id)
-        (db/delete! Card :id card-id)))))
+    (let [{card-id :id} ((user->client :rasta) :post 200 "card" (assoc (card-with-name-and-query card-name (mbql-count-query (data/id) (data/id :venues)))
+                                                                  :collection_id (u/get-id collection)))]
+      (db/select-one-field :collection_id Card :id card-id))))
 
 ;; Make sure we card creation fails if we try to set a `collection_id` we don't have permissions for
-(tt/expect-with-temp [Collection [collection]]
+(expect
   "You don't have permissions to do that."
-  ((user->client :rasta) :post 403 "card" {:name                   "My Cool Card"
-                                           :display                "scalar"
-                                           :dataset_query          (mbql-count-query (id) (id :venues))
-                                           :visualization_settings {:global {:title nil}}
-                                           :collection_id          (u/get-id collection)}))
+  (with-self-cleaning-random-card-name [card-name]
+    (tt/with-temp Collection [collection]
+      ((user->client :rasta) :post 403 "card" (assoc (card-with-name-and-query card-name (mbql-count-query (data/id) (data/id :venues)))
+                                                :collection_id (u/get-id collection))))))
 
 ;; Make sure we can change the `collection_id` of a Card if it's not in any collection
 (tt/expect-with-temp [Card       [card]
@@ -455,26 +539,27 @@
     (db/select-one-field :collection_id Card :id (u/get-id card))))
 
 ;; Make sure we can still change *anything* for a Card if we don't have permissions for the Collection it belongs to
-(tt/expect-with-temp [Collection [collection]
-                      Card       [card       {:collection_id (u/get-id collection)}]]
+(expect
   "You don't have permissions to do that."
-  ((user->client :rasta) :put 403 (str "card/" (u/get-id card)) {:name "Number of Blueberries Consumed Per Month"}))
+  (tt/with-temp* [Collection [collection]
+                  Card       [card       {:collection_id (u/get-id collection)}]]
+    ((user->client :rasta) :put 403 (str "card/" (u/get-id card)) {:name "Number of Blueberries Consumed Per Month"})))
 
 ;; Make sure that we can't change the `collection_id` of a Card if we don't have write permissions for the new collection
-(tt/expect-with-temp [Collection [original-collection]
-                      Collection [new-collection]
-                      Card       [card                {:collection_id (u/get-id original-collection)}]]
+(expect
   "You don't have permissions to do that."
-  (do
+  (tt/with-temp* [Collection [original-collection]
+                  Collection [new-collection]
+                  Card       [card                {:collection_id (u/get-id original-collection)}]]
     (perms/grant-collection-readwrite-permissions! (perms-group/all-users) original-collection)
     ((user->client :rasta) :put 403 (str "card/" (u/get-id card)) {:collection_id (u/get-id new-collection)})))
 
 ;; Make sure that we can't change the `collection_id` of a Card if we don't have write permissions for the current collection
-(tt/expect-with-temp [Collection [original-collection]
-                      Collection [new-collection]
-                      Card       [card                {:collection_id (u/get-id original-collection)}]]
+(expect
   "You don't have permissions to do that."
-  (do
+  (tt/with-temp* [Collection [original-collection]
+                  Collection [new-collection]
+                  Card       [card                {:collection_id (u/get-id original-collection)}]]
     (perms/grant-collection-readwrite-permissions! (perms-group/all-users) new-collection)
     ((user->client :rasta) :put 403 (str "card/" (u/get-id card)) {:collection_id (u/get-id new-collection)})))
 
@@ -513,6 +598,22 @@
   "Not found."
   ((user->client :rasta) :get 404 "card/" :collection :some_fake_collection_slug))
 
+;; Make sure GET /api/card?collection=<slug> still works with Collections with URL-encoded Slugs (#4535)
+(expect
+  []
+  (tt/with-temp Collection [collection {:name "Obsługa klienta"}]
+    (do
+      (perms/grant-collection-readwrite-permissions! (perms-group/all-users) collection)
+      ((user->client :rasta) :get 200 "card/" :collection "obs%C5%82uga_klienta"))))
+
+;; ...even if the slug isn't passed in URL-encoded
+(expect
+  []
+  (tt/with-temp Collection [collection {:name "Obsługa klienta"}]
+    (do
+      (perms/grant-collection-readwrite-permissions! (perms-group/all-users) collection)
+      ((user->client :rasta) :get 200 "card/" :collection "obsługa_klienta"))))
+
 
 ;;; ------------------------------------------------------------ Bulk Collections Update (POST /api/card/collections) ------------------------------------------------------------
 
@@ -548,20 +649,22 @@
   (POST-card-collections! :crowberto 200 new-collection [card-1 card-2]))
 
 ;; Test that we can bulk remove some Cards from a collection
-(tt/expect-with-temp [Collection [collection]
-                      Card       [card-1     {:collection_id (u/get-id collection)}]
-                      Card       [card-2     {:collection_id (u/get-id collection)}]]
+(expect
   [{:status "ok"}
    [nil nil]]
-  (POST-card-collections! :crowberto 200 nil [card-1 card-2]))
+  (tt/with-temp* [Collection [collection]
+                  Card       [card-1     {:collection_id (u/get-id collection)}]
+                  Card       [card-2     {:collection_id (u/get-id collection)}]]
+    (POST-card-collections! :crowberto 200 nil [card-1 card-2])))
 
 ;; Check that we aren't allowed to move Cards if we don't have permissions for destination collection
-(tt/expect-with-temp [Collection [collection]
-                      Card       [card-1]
-                      Card       [card-2]]
+(expect
   ["You don't have permissions to do that."
    [nil nil]]
-  (POST-card-collections! :rasta 403 collection [card-1 card-2]))
+  (tt/with-temp* [Collection [collection]
+                  Card       [card-1]
+                  Card       [card-2]]
+    (POST-card-collections! :rasta 403 collection [card-1 card-2])))
 
 ;; Check that we aren't allowed to move Cards if we don't have permissions for source collection
 (tt/expect-with-temp [Collection [collection]
@@ -572,14 +675,14 @@
   (POST-card-collections! :rasta 403 nil [card-1 card-2]))
 
 ;; Check that we aren't allowed to move Cards if we don't have permissions for the Card
-(tt/expect-with-temp [Collection [collection]
-                      Database   [database]
-                      Table      [table      {:db_id (u/get-id database)}]
-                      Card       [card-1     {:dataset_query (mbql-count-query (u/get-id database) (u/get-id table))}]
-                      Card       [card-2     {:dataset_query (mbql-count-query (u/get-id database) (u/get-id table))}]]
+(expect
   ["You don't have permissions to do that."
    [nil nil]]
-  (do
+  (tt/with-temp* [Collection [collection]
+                  Database   [database]
+                  Table      [table      {:db_id (u/get-id database)}]
+                  Card       [card-1     {:dataset_query (mbql-count-query (u/get-id database) (u/get-id table))}]
+                  Card       [card-2     {:dataset_query (mbql-count-query (u/get-id database) (u/get-id table))}]]
     (perms/revoke-permissions! (perms-group/all-users) (u/get-id database))
     (perms/grant-collection-readwrite-permissions! (perms-group/all-users) collection)
     (POST-card-collections! :rasta 403 collection [card-1 card-2])))
@@ -618,7 +721,7 @@
 
 ;; Test that we *cannot* share a Card if the Card has been archived
 (expect
-  "Not found."
+  {:message "The object has been archived.", :error_code "archived"}
   (tu/with-temporary-setting-values [enable-public-sharing true]
     (tt/with-temp Card [card {:archived true}]
       ((user->client :crowberto) :post 404 (format "card/%d/public_link" (u/get-id card))))))

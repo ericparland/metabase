@@ -1,5 +1,5 @@
-import React, { Component, PropTypes } from "react";
-import ReactDOM from "react-dom";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import GridLayout from "./grid/GridLayout.jsx";
 import DashCard from "./DashCard.jsx";
@@ -63,10 +63,6 @@ export default class DashboardGrid extends Component {
         isEditing: false,
         isEditingParameter: false
     };
-
-    shouldComponentUpdate(nextProps, nextState) {
-        return !(_.isEqual(this.props, nextProps) && _.isEqual(this.state, nextState));
-    }
 
     componentWillReceiveProps(nextProps) {
         this.setState({
@@ -186,7 +182,7 @@ export default class DashboardGrid extends Component {
                 dashcard={dc}
                 dashcardData={this.props.dashcardData}
                 parameterValues={this.props.parameterValues}
-                cardDurations={this.props.cardDurations}
+                slowCards={this.props.slowCards}
                 fetchCardData={this.props.fetchCardData}
                 markNewCardSeen={this.props.markNewCardSeen}
                 isEditing={this.props.isEditing}
@@ -197,7 +193,8 @@ export default class DashboardGrid extends Component {
                 onAddSeries={this.onDashCardAddSeries.bind(this, dc)}
                 onUpdateVisualizationSettings={this.props.onUpdateDashCardVisualizationSettings.bind(this, dc.id)}
                 onReplaceAllVisualizationSettings={this.props.onReplaceAllDashCardVisualizationSettings.bind(this, dc.id)}
-                linkToCard={this.props.linkToCard}
+                navigateToNewCardFromDashboard={this.props.navigateToNewCardFromDashboard}
+                metadata={this.props.metadata}
             />
         )
     }

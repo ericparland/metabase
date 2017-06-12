@@ -1,23 +1,25 @@
 (ns metabase.driver.mongo-test
   "Tests for Mongo driver."
-  (:require [clojure.walk :as walk]
-            [expectations :refer :all]
-            [toucan.db :as db]
-            [metabase.driver :as driver]
-            (metabase.models [database :refer [Database]]
-                             [field :refer [Field]]
-                             [field-values :refer [FieldValues]]
-                             [table :refer [Table] :as table])
-            [metabase.query-processor :as qp]
+  (:require [expectations :refer :all]
+            [metabase
+             [driver :as driver]
+             [query-processor :as qp]
+             [query-processor-test :refer [rows]]]
+            [metabase.models
+             [field :refer [Field]]
+             [field-values :refer [FieldValues]]
+             [table :as table :refer [Table]]]
             [metabase.query-processor.expand :as ql]
-            [metabase.query-processor-test :refer [rows]]
-            [metabase.test.data :as data]
-            [metabase.test.data.datasets :as datasets]
-            [metabase.test.data.interface :as i]
-            [metabase.test.util :as tu])
-  (:import org.bson.types.ObjectId
-           org.joda.time.DateTime
-           metabase.driver.mongo.MongoDriver))
+            [metabase.test
+             [data :as data]
+             [util :as tu]]
+            [metabase.test.data
+             [datasets :as datasets]
+             [interface :as i]]
+            [toucan.db :as db])
+  (:import metabase.driver.mongo.MongoDriver
+           org.bson.types.ObjectId
+           org.joda.time.DateTime))
 
 ;; ## Constants + Helper Fns/Macros
 ;; TODO - move these to metabase.test-data ?
@@ -175,25 +177,50 @@
             (ql/filter (ql/= $bird_id "abcdefabcdefabcdefabcdef"))))))
 
 
-;;; ------------------------------------------------------------ Test that we can handle native queries with "ISODate(...)" forms (#3741) ------------------------------------------------------------
+;;; ------------------------------------------------------------ Test that we can handle native queries with "ISODate(...)" and "ObjectId(...) forms (#3741, #4448) ------------------------------------------------------------
 (tu/resolve-private-vars metabase.driver.mongo.query-processor
-  maybe-decode-iso-date-fncall decode-iso-date-fncalls encode-iso-date-fncalls)
+  maybe-decode-fncall decode-fncalls encode-fncalls)
 
 (expect
   "[{\"$match\":{\"date\":{\"$gte\":[\"___ISODate\", \"2012-01-01\"]}}}]"
-  (encode-iso-date-fncalls "[{\"$match\":{\"date\":{\"$gte\":ISODate(\"2012-01-01\")}}}]"))
+  (encode-fncalls "[{\"$match\":{\"date\":{\"$gte\":ISODate(\"2012-01-01\")}}}]"))
+
+(expect
+  "[{\"$match\":{\"entityId\":{\"$eq\":[\"___ObjectId\", \"583327789137b2700a1621fb\"]}}}]"
+  (encode-fncalls "[{\"$match\":{\"entityId\":{\"$eq\":ObjectId(\"583327789137b2700a1621fb\")}}}]"))
+
+;; make sure fn calls with no arguments work as well (#4996)
+(expect
+  "[{\"$match\":{\"date\":{\"$eq\":[\"___ISODate\"]}}}]"
+  (encode-fncalls "[{\"$match\":{\"date\":{\"$eq\":ISODate()}}}]"))
 
 (expect
   (DateTime. "2012-01-01")
-  (maybe-decode-iso-date-fncall ["___ISODate" "2012-01-01"]))
+  (maybe-decode-fncall ["___ISODate" "2012-01-01"]))
+
+(expect
+  (ObjectId. "583327789137b2700a1621fb")
+  (maybe-decode-fncall ["___ObjectId" "583327789137b2700a1621fb"]))
 
 (expect
   [{:$match {:date {:$gte (DateTime. "2012-01-01")}}}]
-  (decode-iso-date-fncalls [{:$match {:date {:$gte ["___ISODate" "2012-01-01"]}}}]))
+  (decode-fncalls [{:$match {:date {:$gte ["___ISODate" "2012-01-01"]}}}]))
+
+(expect
+  [{:$match {:entityId {:$eq (ObjectId. "583327789137b2700a1621fb")}}}]
+  (decode-fncalls [{:$match {:entityId {:$eq ["___ObjectId" "583327789137b2700a1621fb"]}}}]))
 
 (datasets/expect-with-engine :mongo
   5
   (count (rows (qp/process-query {:native   {:query      "[{\"$match\": {\"date\": {\"$gte\": ISODate(\"2015-12-20\")}}}]"
                                              :collection "checkins"}
+                                  :type     :native
+                                  :database (data/id)}))))
+
+(datasets/expect-with-engine :mongo
+  0
+  ;; this query shouldn't match anything, so we're just checking that it completes successfully
+  (count (rows (qp/process-query {:native   {:query      "[{\"$match\": {\"_id\": {\"$eq\": ObjectId(\"583327789137b2700a1621fb\")}}}]"
+                                             :collection "venues"}
                                   :type     :native
                                   :database (data/id)}))))

@@ -50,6 +50,9 @@ const MetabaseSettings = {
     ssoEnabled: function() {
         return mb_settings.google_auth_client_id != null;
     },
+    ldapEnabled: function() {
+        return mb_settings.ldap_configured;
+    },
 
     newVersionAvailable: function(settings) {
         let versionInfo = _.findWhere(settings, {key: "version-info"}),

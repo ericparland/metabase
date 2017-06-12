@@ -1,11 +1,12 @@
 /* @flow */
 
-import { GET, PUT, POST, DELETE } from "metabase/lib/api";
+import api from "metabase/lib/api";
+const { GET, PUT, POST, DELETE } = api;
 
-import { IFRAMED_IN_METABASE } from "metabase/lib/dom";
+import { IS_EMBED_PREVIEW } from "metabase/lib/embed";
 
 // use different endpoints for embed previews
-const embedBase = IFRAMED_IN_METABASE ? "/api/preview_embed" : "/api/embed";
+const embedBase = IS_EMBED_PREVIEW ? "/api/preview_embed" : "/api/embed";
 
 // $FlowFixMe: Flow doesn't understand webpack loader syntax
 import getGAMetadata from "promise-loader?global!metabase/lib/ga-metadata"; // eslint-disable-line import/default
@@ -45,6 +46,8 @@ export const DashboardApi = {
     addcard:                    POST("/api/dashboard/:dashId/cards"),
     removecard:               DELETE("/api/dashboard/:dashId/cards"),
     reposition_cards:            PUT("/api/dashboard/:dashId/cards"),
+    favorite:                   POST("/api/dashboard/:dashId/favorite"),
+    unfavorite:               DELETE("/api/dashboard/:dashId/favorite"),
 
     listPublic:                  GET("/api/dashboard/public"),
     listEmbeddable:              GET("/api/dashboard/embeddable"),
@@ -89,6 +92,10 @@ export const GlipApi = {
     updateSettings:              PUT("/api/glip/settings"),
 };
 
+export const LdapApi = {
+    updateSettings:              PUT("/api/ldap/settings")
+};
+
 export const MetabaseApi = {
     db_list:                     GET("/api/database"),
     db_list_with_tables:         GET("/api/database?include_tables=true"),
@@ -122,12 +129,11 @@ export const MetabaseApi = {
     // table_sync_metadata:        POST("/api/table/:tableId/sync"),
     // field_get:                   GET("/api/field/:fieldId"),
     // field_summary:               GET("/api/field/:fieldId/summary"),
-    // field_values:                GET("/api/field/:fieldId/values"),
+    field_values:                GET("/api/field/:fieldId/values"),
     // field_value_map_update:     POST("/api/field/:fieldId/value_map_update"),
     field_update:                PUT("/api/field/:id"),
     dataset:                    POST("/api/dataset"),
     dataset_duration:           POST("/api/dataset/duration"),
-   // dataset_duration_public:           POST("/api/dataset/duration-public"),
 };
 
 export const PulseApi = {
@@ -211,6 +217,7 @@ export const GettingStartedApi = {
 export const SetupApi = {
     create:                     POST("/api/setup"),
     validate_db:                POST("/api/setup/validate"),
+    admin_checklist:             GET("/api/setup/admin_checklist"),
 };
 
 export const UserApi = {
@@ -228,6 +235,11 @@ export const UserApi = {
 export const UtilApi = {
     password_check:             POST("/api/util/password_check"),
     random_token:                GET("/api/util/random_token"),
+    logs:                        GET("/api/util/logs"),
+};
+
+export const GeoJSONApi = {
+    get:                         GET("/api/geojson/:id"),
 };
 
 global.services = exports;

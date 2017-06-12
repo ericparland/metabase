@@ -1,34 +1,37 @@
 (ns metabase.util.stats
   "Functions which summarize the usage of an instance"
-  (:require [clojure.tools.logging :as log]
-            [clj-http.client :as client]
+  (:require [clj-http.client :as client]
+            [clojure.tools.logging :as log]
             [medley.core :as m]
-            [toucan.db :as db]
+            [metabase
+             [config :as config]
+             [driver :as driver]
+             [email :as email]
+             [public-settings :as public-settings]
+             [util :as u]]
             [metabase.api.session :as session-api]
-            [metabase.config :as config]
-            [metabase.driver :as driver]
-            [metabase.email :as email]
             [metabase.integrations.slack :as slack]
-            (metabase.models [card :refer [Card]]
-                             [card-label :refer [CardLabel]]
-                             [collection :refer [Collection]]
-                             [dashboard :refer [Dashboard]]
-                             [dashboard-card :refer [DashboardCard]]
-                             [database :refer [Database]]
-                             [field :refer [Field]]
-                             [humanization :as humanization]
-                             [label :refer [Label]]
-                             [metric :refer [Metric]]
-                             [permissions-group :refer [PermissionsGroup]]
-                             [pulse :refer [Pulse]]
-                             [pulse-card :refer [PulseCard]]
-                             [pulse-channel :refer [PulseChannel]]
-                             [query-execution :refer [QueryExecution]]
-                             [segment :refer [Segment]]
-                             [table :refer [Table]]
-                             [user :refer [User]])
-            [metabase.public-settings :as public-settings]
-            [metabase.util :as u])
+            [metabase.models
+             [card :refer [Card]]
+             [card-label :refer [CardLabel]]
+             [collection :refer [Collection]]
+             [dashboard :refer [Dashboard]]
+             [dashboard-card :refer [DashboardCard]]
+             [database :refer [Database]]
+             [field :refer [Field]]
+             [humanization :as humanization]
+             [label :refer [Label]]
+             [metric :refer [Metric]]
+             [permissions-group :refer [PermissionsGroup]]
+             [pulse :refer [Pulse]]
+             [pulse-card :refer [PulseCard]]
+             [pulse-channel :refer [PulseChannel]]
+             [query-cache :refer [QueryCache]]
+             [query-execution :refer [QueryExecution]]
+             [segment :refer [Segment]]
+             [table :refer [Table]]
+             [user :refer [User]]]
+            [toucan.db :as db])
   (:import java.util.Date))
 
 (defn- merge-count-maps
@@ -44,7 +47,7 @@
                            :else       0)
                         m))))
 
-(def ^:private ^:const ^String metabase-usage-url "http://localhost");;"https://xuq0fbkk0j.execute-api.us-east-1.amazonaws.com/prod")
+(def ^:private ^:const ^String metabase-usage-url "https://xuq0fbkk0j.execute-api.us-east-1.amazonaws.com/prod")
 
 (def ^:private ^Integer anonymous-id
   "Generate an anonymous id. Don't worry too much about hash collisions or localhost cases, etc.
@@ -60,7 +63,7 @@
     2 "2"
     "3+"))
 
-#_(defn- bin-small-number
+(defn- bin-small-number
   "Return small bin number. Assumes positive inputs."
   [x]
   (cond
@@ -161,26 +164,56 @@
   []
   {:groups (db/count PermissionsGroup)})
 
+(defn- card-has-params? [card]
+  (boolean (get-in card [:dataset_query :native :template_tags])))
+
 (defn- question-metrics
   "Get metrics based on questions
   TODO characterize by # executions and avg latency"
   []
-  {:questions (merge-count-maps (for [{query-type :query_type} (db/select [Card :query_type])]
-                                  (let [native? (= (keyword query-type) :native)]
-                                    {:total  1
-                                     :native native?
-                                     :gui    (not native?)})))})
+  (let [cards (db/select [Card :query_type :public_uuid :enable_embedding :embedding_params :dataset_query])]
+    {:questions (merge-count-maps (for [card cards]
+                                    (let [native? (= (keyword (:query_type card)) :native)]
+                                      {:total       1
+                                       :native      native?
+                                       :gui         (not native?)
+                                       :with_params (card-has-params? card)})))
+     :public    (merge-count-maps (for [card  cards
+                                        :when (:public_uuid card)]
+                                    {:total       1
+                                     :with_params (card-has-params? card)}))
+     :embedded  (merge-count-maps (for [card  cards
+                                        :when (:enable_embedding card)]
+                                    (let [embedding-params-vals (set (vals (:embedding_params card)))]
+                                      {:total                1
+                                       :with_params          (card-has-params? card)
+                                       :with_enabled_params  (contains? embedding-params-vals "enabled")
+                                       :with_locked_params   (contains? embedding-params-vals "locked")
+                                       :with_disabled_params (contains? embedding-params-vals "disabled")})))}))
 
 (defn- dashboard-metrics
   "Get metrics based on dashboards
   TODO characterize by # of revisions, and created by an admin"
   []
-  (let [dashboards (db/select [Dashboard :creator_id])
+  (let [dashboards (db/select [Dashboard :creator_id :public_uuid :parameters :enable_embedding :embedding_params])
         dashcards  (db/select [DashboardCard :card_id :dashboard_id])]
     {:dashboards         (count dashboards)
+     :with_params        (count (filter (comp seq :parameters) dashboards))
      :num_dashs_per_user (medium-histogram dashboards :creator_id)
      :num_cards_per_dash (medium-histogram dashcards :dashboard_id)
-     :num_dashs_per_card (medium-histogram dashcards :card_id)}))
+     :num_dashs_per_card (medium-histogram dashcards :card_id)
+     :public             (merge-count-maps (for [dash  dashboards
+                                                 :when (:public_uuid dash)]
+                                             {:total       1
+                                              :with_params (seq (:parameters dash))}))
+     :embedded           (merge-count-maps (for [dash  dashboards
+                                                 :when (:enable_embedding dash)]
+                                             (let [embedding-params-vals (set (vals (:embedding_params dash)))]
+                                               {:total                1
+                                                :with_params          (seq (:parameters dash))
+                                                :with_enabled_params  (contains? embedding-params-vals "enabled")
+                                                :with_locked_params   (contains? embedding-params-vals "locked")
+                                                :with_disabled_params (contains? embedding-params-vals "disabled")})))}))
 
 (defn- pulse-metrics
   "Get mes based on pulses
@@ -267,7 +300,7 @@
 (defn- executions-chunk
   "Fetch the chunk of QueryExecutions whose ID is greater than STARTING-ID."
   [starting-id]
-  (db/select [QueryExecution :id :executor_id :running_time :status]
+  (db/select [QueryExecution :id :executor_id :running_time :error]
     :id [:> starting-id]
     {:order-by [:id], :limit executions-chunk-size}))
 
@@ -286,7 +319,9 @@
   ([summary execution]
    (-> summary
        (update :executions u/safe-inc)
-       (update-in [:by_status (:status execution)] u/safe-inc)
+       (update-in [:by_status (if (:error execution)
+                                "failed"
+                                "completed")] u/safe-inc)
        (update-in [:num_per_user (:executor_id execution)] u/safe-inc)
        (update-in [:num_by_latency (bin-large-number (/ (:running_time execution) 1000))] u/safe-inc))))
 
@@ -303,24 +338,37 @@
       (update :num_per_user summarize-executions-per-user)))
 
 
+;;; Cache Metrics
+
+(defn- cache-metrics
+  "Metrics based on use of the QueryCache."
+  []
+  (let [{:keys [length count]} (db/select-one [QueryCache [:%avg.%length.results :length] [:%count.* :count]])]
+    {:average_entry_size (int (or length 0))
+     :num_queries_cached (bin-small-number count)}))
+
+
+;;; Combined Stats & Logic for sending them in
+
 (defn anonymous-usage-stats
   "generate a map of the usage stats for this instance"
   []
   (merge (instance-settings)
          {:uuid anonymous-id, :timestamp (Date.)}
-         {:stats {:user       (user-metrics)
-                  :question   (question-metrics)
+         {:stats {:cache      (cache-metrics)
+                  :collection (collection-metrics)
                   :dashboard  (dashboard-metrics)
                   :database   (database-metrics)
-                  :table      (table-metrics)
+                  :execution  (execution-metrics)
                   :field      (field-metrics)
-                  :pulse      (pulse-metrics)
-                  :segment    (segment-metrics)
-                  :metric     (metric-metrics)
                   :group      (group-metrics)
                   :label      (label-metrics)
-                  :collection (collection-metrics)
-                  :execution  (execution-metrics)}}))
+                  :metric     (metric-metrics)
+                  :pulse      (pulse-metrics)
+                  :question   (question-metrics)
+                  :segment    (segment-metrics)
+                  :table      (table-metrics)
+                  :user       (user-metrics)}}))
 
 
 (defn- send-stats!

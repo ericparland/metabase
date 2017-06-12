@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 
 import CopyButton from "./CopyButton";
 
@@ -8,8 +8,9 @@ type Props = {
     value: string
 };
 
-export default class CopyWidget extends Component<*, Props, *> {
+export default class CopyWidget extends Component {
     props: Props;
+
     render() {
         const { value } = this.props;
         return (

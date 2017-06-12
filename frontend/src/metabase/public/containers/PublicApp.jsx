@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 import { connect } from "react-redux";
 
 import PublicNotFound from "metabase/public/components/PublicNotFound";
@@ -16,7 +16,9 @@ const mapStateToProps = (state, props) => ({
 });
 
 @connect(mapStateToProps)
-export default class PublicApp extends Component<*, Props, *> {
+export default class PublicApp extends Component {
+    props: Props;
+
     render() {
         const { children, errorPage } = this.props;
         if (errorPage) {

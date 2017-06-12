@@ -1,15 +1,14 @@
 (ns metabase.test.data.users
   "Code related to creating / managing fake `Users` for testing purposes."
-  ;; TODO - maybe this namespace should just be `metabase.test.users`.
   (:require [medley.core :as m]
-            [toucan.db :as db]
-            (metabase [config :as config]
-                      [core :as core])
-            [metabase.http-client :as http]
-            (metabase.models [permissions-group :as perms-group]
-                             [user :refer [User]])
-            [metabase.util :as u]
-            [metabase.test.util :refer [random-name]]))
+            [metabase
+             [config :as config]
+             [http-client :as http]
+             [util :as u]]
+            [metabase.core.initialization-status :as init-status]
+            [metabase.models.user :refer [User]]
+            [toucan.db :as db])
+  (:import clojure.lang.ExceptionInfo))
 
 ;;; ------------------------------------------------------------ User Definitions ------------------------------------------------------------
 
@@ -56,10 +55,10 @@
    ;; only need to wait when running unit tests. When doing REPL dev and using the test users we're probably
    ;; the server is probably a separate process (`lein ring server`)
    (when config/is-test?
-     (when-not (core/initialized?)
+     (when-not (init-status/complete?)
        (when (<= max-wait-seconds 0)
          (throw (Exception. "Metabase still hasn't finished initializing.")))
-       (println (format "Metabase is not yet initialized, waiting 1 second (max wait remaining: %d seconds)..." max-wait-seconds))
+       (printf "Metabase is not yet initialized, waiting 1 second (max wait remaining: %d seconds)...\n" max-wait-seconds)
        (Thread/sleep 1000)
        (recur (dec max-wait-seconds))))))
 
@@ -108,12 +107,14 @@
      (:id (fetch-user username)))))
 
 (defn user->credentials
-  "Return a map with `:email` and `:password` for User with USERNAME.
+  "Return a map with `:username` and `:password` for User with USERNAME.
 
-    (user->credentials :rasta) -> {:email \"rasta@metabase.com\", :password \"blueberries\"}"
+    (user->credentials :rasta) -> {:username \"rasta@metabase.com\", :password \"blueberries\"}"
   [username]
   {:pre [(contains? usernames username)]}
-  (select-keys (user->info username) [:email :password]))
+  (let [{:keys [email password]} (user->info username)]
+    {:username email
+     :password password}))
 
 (def ^{:arglists '([id])} id->user
   "Reverse of `user->id`.
@@ -123,7 +124,7 @@
     (fn [id]
       (@m id))))
 
-(def ^:private tokens (atom {}))
+(defonce ^:private tokens (atom {}))
 
 (defn- username->token [username]
   (or (@tokens username)
@@ -134,7 +135,7 @@
 (defn- client-fn [username & args]
   (try
     (apply http/client (username->token username) args)
-    (catch Throwable e
+    (catch ExceptionInfo e
       (let [{:keys [status-code]} (ex-data e)]
         (when-not (= status-code 401)
           (throw e))
@@ -142,10 +143,6 @@
         (reset! tokens {})
         (apply client-fn username args)))))
 
-;; TODO - does it make sense just to make this a non-higher-order function? Or a group of functions, e.g.
-;; (GET :rasta 200 "field/10/values")
-;; vs.
-;; ((user->client :rasta) :get 200 "field/10/values")
 (defn user->client
   "Returns a `metabase.http-client/client` partially bound with the credentials for User with USERNAME.
    In addition, it forces lazy creation of the User if needed.
@@ -160,4 +157,4 @@
   "Delete all users besides the 4 persistent test users.
    This is a HACK to work around tests that don't properly clean up after themselves; one day we should be able to remove this. (TODO)"
   []
-  (db/delete! 'User :id [:not-in (map user->id [:crowberto :lucky :rasta :trashbird])]))
+  (db/delete! User :id [:not-in (map user->id [:crowberto :lucky :rasta :trashbird])]))

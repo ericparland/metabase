@@ -1,6 +1,7 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 import ReactDOM from "react-dom";
 import styles from "./Table.css";
 
@@ -10,15 +11,17 @@ import Icon from "metabase/components/Icon.jsx";
 
 import { formatValue } from "metabase/lib/formatting";
 import { getFriendlyName } from "metabase/visualizations/lib/utils";
+import { getTableCellClickedObject, isColumnRightAligned } from "metabase/visualizations/lib/table";
 
 import cx from "classnames";
 import _ from "underscore";
 
-import type { VisualizationProps } from "metabase/visualizations";
+import type { VisualizationProps } from "metabase/meta/types/Visualization";
 
 type Props = VisualizationProps & {
     height: number,
-    className?: string
+    className?: string,
+    isPivoted: boolean,
 }
 
 type State = {
@@ -29,7 +32,8 @@ type State = {
 }
 
 @ExplicitSize
-export default class TableSimple extends Component<*, Props, State> {
+export default class TableSimple extends Component {
+    props: Props;
     state: State;
 
     constructor(props: Props) {
@@ -70,18 +74,19 @@ export default class TableSimple extends Component<*, Props, State> {
     }
 
     render() {
-        const { data } = this.props;
-        const { page, pageSize, sortColumn, sortDescending } = this.state;
+        const { data, onVisualizationClick, visualizationIsClickable, isPivoted } = this.props;
+        const { rows, cols } = data;
 
-        let { rows, cols } = data;
+        const { page, pageSize, sortColumn, sortDescending } = this.state;
 
         let start = pageSize * page;
         let end = Math.min(rows.length - 1, pageSize * (page + 1) - 1);
 
+        let rowIndexes = _.range(0, rows.length);
         if (sortColumn != null) {
-            rows = _.sortBy(rows, (row) => row[sortColumn]);
+            rowIndexes = _.sortBy(rowIndexes, (rowIndex) => rows[rowIndex][sortColumn]);
             if (sortDescending) {
-                rows.reverse();
+                rowIndexes.reverse();
             }
         }
 
@@ -93,7 +98,14 @@ export default class TableSimple extends Component<*, Props, State> {
                             <thead ref="header">
                                 <tr>
                                     {cols.map((col, colIndex) =>
-                                        <th key={colIndex} className={cx("TableInteractive-headerCellData cellData text-brand-hover", { "TableInteractive-headerCellData--sorted": sortColumn === colIndex })} onClick={() => this.setSort(colIndex)}>
+                                        <th
+                                            key={colIndex}
+                                            className={cx("TableInteractive-headerCellData cellData text-brand-hover", {
+                                                "TableInteractive-headerCellData--sorted": sortColumn === colIndex,
+                                                "text-right": isColumnRightAligned(col)
+                                            })}
+                                            onClick={() => this.setSort(colIndex)}
+                                        >
                                             <div className="relative">
                                                 <Icon
                                                     name={sortDescending ? "chevrondown" : "chevronup"}
@@ -107,13 +119,28 @@ export default class TableSimple extends Component<*, Props, State> {
                                 </tr>
                             </thead>
                             <tbody>
-                            {rows.slice(start, end + 1).map((row, rowIndex) =>
-                                <tr key={rowIndex} ref={rowIndex === 0 ? "firstRow" : null}>
-                                    {row.map((cell, colIndex) =>
-                                        <td key={colIndex} style={{ whiteSpace: "nowrap" }} className="px1 border-bottom">
-                                            { cell == null ? "-" : formatValue(cell, { column: cols[colIndex], jsx: true }) }
-                                        </td>
-                                    )}
+                            {rowIndexes.slice(start, end + 1).map((rowIndex, index) =>
+                                <tr key={rowIndex} ref={index === 0 ? "firstRow" : null}>
+                                    {rows[rowIndex].map((cell, columnIndex) => {
+                                        const clicked = getTableCellClickedObject(data, rowIndex, columnIndex, isPivoted);
+                                        const isClickable = onVisualizationClick && visualizationIsClickable(clicked);
+                                        return (
+                                            <td
+                                                key={columnIndex}
+                                                style={{ whiteSpace: "nowrap" }}
+                                                className={cx("px1 border-bottom", { "text-right": isColumnRightAligned(cols[columnIndex]) })}
+                                            >
+                                                <span
+                                                    className={cx({ "cursor-pointer text-brand-hover": isClickable })}
+                                                    onClick={isClickable && ((e) => {
+                                                        onVisualizationClick({ ...clicked, element: e.currentTarget });
+                                                    })}
+                                                >
+                                                    { cell == null ? "-" : formatValue(cell, { column: cols[columnIndex], jsx: true }) }
+                                                </span>
+                                            </td>
+                                        );
+                                    })}
                                 </tr>
                             )}
                             </tbody>

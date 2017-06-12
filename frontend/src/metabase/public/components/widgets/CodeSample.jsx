@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 
 import Select, { Option } from "metabase/components/Select";
 import CopyButton from "metabase/components/CopyButton";
@@ -9,25 +9,21 @@ import AceEditor from "metabase/components/TextEditor";
 
 import _ from "underscore";
 
-type CodeSampleOption = {
-    name: string,
-    value: string,
-    source: () => string,
-    mode: string
-};
+import type { CodeSampleOption } from "metabase/public/lib/code";
 
 type Props = {
     className?: string,
     title?: string,
     options?: Array<CodeSampleOption>,
-    onChangeOption: (option: ?CodeSampleOption) => void
+    onChangeOption?: (option: ?CodeSampleOption) => void
 };
 
 type State = {
     name: ?string,
 };
 
-export default class CodeSample extends Component<*, Props, State> {
+export default class CodeSample extends Component {
+    props: Props;
     state: State;
 
     constructor(props: Props) {

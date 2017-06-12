@@ -2,17 +2,17 @@
   (:require [clojure.math.numeric-tower :as math]
             [clojure.tools.logging :as log]
             [medley.core :as m]
-            [toucan.db :as db]
-            [metabase.config :as config]
-            (metabase.models [database :refer [Database]]
-                             field
-                             [query-execution :refer [QueryExecution]]
-                             [setting :refer [defsetting]])
-            [metabase.util :as u])
+            [metabase.models
+             [database :refer [Database]]
+             field
+             [setting :refer [defsetting]]
+             table]
+            [metabase.util :as u]
+            [toucan.db :as db])
   (:import clojure.lang.Keyword
            metabase.models.database.DatabaseInstance
-           metabase.models.field.FieldInstance))
-
+           metabase.models.field.FieldInstance
+           metabase.models.table.TableInstance))
 
 ;;; ## INTERFACE + CONSTANTS
 
@@ -32,7 +32,9 @@
 
 (def ^:const connection-error-messages
   "Generic error messages that drivers should return in their implementation of `humanize-connection-error-message`."
-  {:cannot-connect-check-host-and-port "Hmm, we couldn't connect to the database. Make sure your host and port settings are correct."
+  {:cannot-connect-check-host-and-port "Hmm, we couldn't connect to the database. Make sure your host and port settings are correct"
+   :ssh-tunnel-auth-fail               "We couldn't connect to the ssh tunnel host. Check the username, password"
+   :ssh-tunnel-connection-fail         "We couldn't connect to the ssh tunnel host. Check the hostname and port"
    :database-name-incorrect            "Looks like the database name is incorrect."
    :invalid-hostname                   "It looks like your host is invalid. Please double-check it and try again."
    :password-incorrect                 "Looks like your password is incorrect."
@@ -320,6 +322,17 @@
              [org.postgresql.util.PGobject   :type/*]])
       (log/warn (format "Don't know how to map class '%s' to a Field base_type, falling back to :type/*." klass))
       :type/*))
+
+(defn values->base-type
+  "Given a sequence of VALUES, return the most common base type."
+  [values]
+  (->> values
+       (filter (complement nil?))                   ; filter out `nil` values
+       (take 1000)                                  ; take up to 1000 values
+       (group-by (comp class->base-type class))     ; now group by their base-type
+       (sort-by (comp (partial * -1) count second)) ; sort the map into pairs of [base-type count] with highest count as first pair
+       ffirst))                                     ; take the base-type from the first pair
+
 
 ;; ## Driver Lookup
 

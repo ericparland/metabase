@@ -6,7 +6,7 @@ import type Field from "./metadata/Field";
 import type { FieldId } from "./types/Field";
 import type { TemplateTag } from "./types/Query";
 import type { Card } from "./types/Card";
-import type { ParameterOption, Parameter, ParameterMappingUIOption, ParameterMappingTarget, DimensionTarget, VariableTarget } from "./types/Dashboard";
+import type { ParameterOption, Parameter, ParameterType, ParameterMappingUIOption, DimensionTarget, VariableTarget } from "./types/Parameter";
 
 import { getTemplateTags } from "./Card";
 
@@ -42,6 +42,12 @@ export const PARAMETER_OPTIONS: Array<ParameterOption> = [
         type: "date/relative",
         name: "Relative Date",
         description: "Like \"the last 7 days\" or \"this month\""
+    },
+    {
+        type: "date/all-options",
+        name: "Date Filter",
+        menuName: "All Options",
+        description: "Contains all of the above"
     },
     {
         type: "location/city",
@@ -200,37 +206,28 @@ export function getCardVariables(metadata: Metadata, card: Card, filter: Templat
     return [];
 }
 
-export function getParameterMappingTargetField(metadata: Metadata, card: Card, target: ParameterMappingTarget): ?Field {
-    if (target[0] === "dimension") {
-        let dimension = target[1];
-        if (Array.isArray(dimension) && mbqlEq(dimension[0], "template-tag")) {
-            if (card.dataset_query.type === "native") {
-                let templateTag = card.dataset_query.native.template_tags[String(dimension[1])];
-                if (templateTag && templateTag.type === "dimension") {
-                    return metadata.field(Query.getFieldTargetId(templateTag.dimension));
-                }
-            }
-        } else {
-            return metadata.field(Query.getFieldTargetId(dimension));
-        }
-    }
-    return null;
+function fieldFilterForParameter(parameter: Parameter) {
+    return fieldFilterForParameterType(parameter.type);
 }
 
-function fieldFilterForParameter(parameter: Parameter): FieldFilter {
-    const [type] = parameter.type.split("/");
+export function fieldFilterForParameterType(parameterType: ParameterType): FieldFilter {
+    const [type] = parameterType.split("/");
     switch (type) {
         case "date":        return (field: Field) => field.isDate();
         case "id":          return (field: Field) => field.isID();
         case "category":    return (field: Field) => field.isCategory();
     }
-    switch (parameter.type) {
+    switch (parameterType) {
         case "location/city":     return (field: Field) => isa(field.special_type, TYPE.City);
         case "location/state":    return (field: Field) => isa(field.special_type, TYPE.State);
         case "location/zip_code": return (field: Field) => isa(field.special_type, TYPE.ZipCode);
         case "location/country":  return (field: Field) => isa(field.special_type, TYPE.Country);
     }
     return (field: Field) => false;
+}
+
+export function parameterOptionsForField(field: Field): ParameterOption[] {
+    return PARAMETER_OPTIONS.filter(option => fieldFilterForParameterType(option.type)(field));
 }
 
 function tagFilterForParameter(parameter: Parameter): TemplateTagFilter {

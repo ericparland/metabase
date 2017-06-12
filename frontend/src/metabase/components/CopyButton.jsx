@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 
 import Icon from "metabase/components/Icon";
 import Tooltip from "metabase/components/Tooltip";
@@ -15,7 +15,7 @@ type State = {
     copied: boolean
 };
 
-export default class CopyWidget extends Component<*, Props, State> {
+export default class CopyWidget extends Component {
     props: Props;
     state: State;
 

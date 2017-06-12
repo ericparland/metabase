@@ -1,17 +1,20 @@
 (ns metabase.models.pulse
   (:require [clojure.set :as set]
             [medley.core :as m]
+            [metabase
+             [db :as mdb]
+             [events :as events]
+             [util :as u]]
             [metabase.api.common :refer [*current-user*]]
-            (toucan [db :as db]
-                    [hydrate :refer [hydrate]]
-                    [models :as models])
-            [metabase.db :as mdb]
-            [metabase.events :as events]
-            (metabase.models [card :refer [Card]]
-                             [interface :as i]
-                             [pulse-card :refer [PulseCard]]
-                             [pulse-channel :refer [PulseChannel] :as pulse-channel])
-            [metabase.util :as u]))
+            [metabase.models
+             [card :refer [Card]]
+             [interface :as i]
+             [pulse-card :refer [PulseCard]]
+             [pulse-channel :as pulse-channel :refer [PulseChannel]]]
+            [toucan
+             [db :as db]
+             [hydrate :refer [hydrate]]
+             [models :as models]]))
 
 ;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
 
@@ -74,9 +77,9 @@
   "Return the `Cards` associated with this PULSE."
   [{:keys [id]}]
   (db/select [Card :id :name :description :display]
-             (mdb/join [Card :id] [PulseCard :card_id])
-             (db/qualify PulseCard :pulse_id) id
-             {:order-by [[(db/qualify PulseCard :position) :asc]]}))
+    (mdb/join [Card :id] [PulseCard :card_id])
+    (db/qualify PulseCard :pulse_id) id
+    {:order-by [[(db/qualify PulseCard :position) :asc]]}))
 
 
 ;;; ------------------------------------------------------------ Pulse Fetching Helper Fns ------------------------------------------------------------
@@ -103,6 +106,7 @@
 (defn update-pulse-cards!
   "Update the `PulseCards` for a given PULSE.
    CARD-IDS should be a definitive collection of *all* IDs of cards for the pulse in the desired order.
+
    *  If an ID in CARD-IDS has no corresponding existing `PulseCard` object, one will be created.
    *  If an existing `PulseCard` has no corresponding ID in CARD-IDs, it will be deleted.
    *  All cards will be updated with a `position` according to their place in the collection of CARD-IDS"
@@ -115,8 +119,8 @@
   (db/delete! PulseCard :pulse_id id)
   ;; now just insert all of the cards that were given to us
   (when (seq card-ids)
-        (let [cards (map-indexed (fn [idx itm] {:pulse_id id :card_id itm :position idx}) card-ids)]
-          (db/insert-many! PulseCard cards))))
+    (let [cards (map-indexed (fn [idx itm] {:pulse_id id :card_id itm :position idx}) card-ids)]
+      (db/insert-many! PulseCard cards))))
 
 
 (defn- create-update-delete-channel!
@@ -125,11 +129,11 @@
   ;; NOTE that we force the :id of the channel being updated to the :id we *know* from our
   ;;      existing list of `PulseChannels` pulled from the db to ensure we affect the right record
   (let [channel (when new-channel (assoc new-channel
-                                         :pulse_id       pulse-id
-                                         :id             (:id existing-channel)
-                                         :channel_type   (keyword (:channel_type new-channel))
-                                         :schedule_type  (keyword (:schedule_type new-channel))
-                                         :schedule_frame (keyword (:schedule_frame new-channel))))]
+                                    :pulse_id       pulse-id
+                                    :id             (:id existing-channel)
+                                    :channel_type   (keyword (:channel_type new-channel))
+                                    :schedule_type  (keyword (:schedule_type new-channel))
+                                    :schedule_frame (keyword (:schedule_frame new-channel))))]
     (cond
       ;; 1. in channels, NOT in db-channels = CREATE
       (and channel (not existing-channel))  (pulse-channel/create-pulse-channel! channel)
@@ -143,6 +147,7 @@
 (defn update-pulse-channels!
   "Update the `PulseChannels` for a given PULSE.
    CHANNELS should be a definitive collection of *all* of the channels for the the pulse.
+
    * If a channel in the list has no existing `PulseChannel` object, one will be created.
    * If an existing `PulseChannel` has no corresponding entry in CHANNELS, it will be deleted.
    * All previously existing channels will be updated with their most recent information."
@@ -155,7 +160,7 @@
         old-channels   (group-by (comp keyword :channel_type) (db/select PulseChannel :pulse_id id))
         handle-channel #(create-update-delete-channel! id (first (get new-channels %)) (first (get old-channels %)))]
     (assert (zero? (count (get new-channels nil)))
-            "Cannot have channels without a :channel_type attribute")
+      "Cannot have channels without a :channel_type attribute")
     ;; for each of our possible channel types call our handler function
     (doseq [[channel-type] pulse-channel/channel-types]
       (handle-channel channel-type))))
@@ -164,8 +169,9 @@
 (defn create-pulse!
   "Create a new `Pulse` by inserting it into the database along with all associated pieces of data such as:
   `PulseCards`, `PulseChannels`, and `PulseChannelRecipients`.
+
    Returns the newly created `Pulse` or throws an Exception."
-  [pulse-name creator-id card-ids channels]
+  [pulse-name creator-id card-ids channels skip-if-empty?]
   {:pre [(string? pulse-name)
          (integer? creator-id)
          (sequential? card-ids)
@@ -175,8 +181,9 @@
          (every? map? channels)]}
   (db/transaction
     (let [{:keys [id] :as pulse} (db/insert! Pulse
-                                             :creator_id creator-id
-                                             :name pulse-name)]
+                                   :creator_id creator-id
+                                   :name pulse-name
+                                   :skip_if_empty skip-if-empty?)]
       ;; add card-ids to the Pulse
       (update-pulse-cards! pulse card-ids)
       ;; add channels to the Pulse
@@ -187,8 +194,9 @@
 
 (defn update-pulse!
   "Update an existing `Pulse`, including all associated data such as: `PulseCards`, `PulseChannels`, and `PulseChannelRecipients`.
+
    Returns the updated `Pulse` or throws an Exception."
-  [{:keys [id name cards channels] :as pulse}]
+  [{:keys [id name cards channels skip-if-empty?] :as pulse}]
   {:pre [(integer? id)
          (string? name)
          (sequential? cards)
@@ -198,10 +206,10 @@
          (every? map? channels)]}
   (db/transaction
     ;; update the pulse itself
-    (db/update! Pulse id, :name name)
+    (db/update! Pulse id, :name name, :skip_if_empty skip-if-empty?)
     ;; update cards (only if they changed)
     (when (not= cards (map :card_id (db/select [PulseCard :card_id], :pulse_id id, {:order-by [[:position :asc]]})))
-          (update-pulse-cards! pulse cards))
+      (update-pulse-cards! pulse cards))
     ;; update channels
     (update-pulse-channels! pulse channels)
     ;; fetch the fully updated pulse and return it (and fire off an event)

@@ -1,5 +1,6 @@
 /* eslint "react/prop-types": "warn" */
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import Icon from "metabase/components/Icon.jsx";
 
@@ -59,7 +60,8 @@ export default class PulseListChannel extends Component {
         } else if (channel.channel_type === "glip") {
             channelIcon = "glip";
             channelVerb = "Glip'd";
-            channelTarget = channel.details.channel;}
+            channelTarget = channel.details.channel;
+        }
 
         return (
             <div className="h4 text-grey-4 py2 flex align-center">

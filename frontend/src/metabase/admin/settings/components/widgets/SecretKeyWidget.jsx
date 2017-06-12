@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 
 import SettingInput from "./SettingInput";
 import Button from "metabase/components/Button";
@@ -13,7 +13,7 @@ type Props = {
     setting: {}
 };
 
-export default class SecretKeyWidget extends Component<*, Props, *> {
+export default class SecretKeyWidget extends Component {
     props: Props;
 
     _generateToken = async () => {

@@ -1,13 +1,14 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
-import ReactDOM from "react-dom";
-import { withRouter } from "react-router"; import { IFRAMED } from "metabase/lib/dom";
+import React, { Component } from "react";
+import { withRouter } from "react-router";
 
-import Parameters from "metabase/dashboard/containers/Parameters";
+import { IFRAMED } from "metabase/lib/dom";
+import { parseHashOptions } from "metabase/lib/browser";
+
+import Parameters from "metabase/parameters/components/Parameters";
 import LogoBadge from "./LogoBadge";
 
-import querystring from "querystring";
 import cx from "classnames";
 
 import "./EmbedFrame.css";
@@ -17,7 +18,7 @@ const DEFAULT_OPTIONS = {
     titled: true
 }
 
-import type { Parameter } from "metabase/meta/types/Dashboard";
+import type { Parameter } from "metabase/meta/types/Parameter";
 
 type Props = {
     className?: string,
@@ -25,38 +26,58 @@ type Props = {
     actionButtons?: any[],
     name?: string,
     description?: string,
-    location: { query: {[key:string]: string}},
+    location: { query: {[key:string]: string}, hash: string },
     parameters?: Parameter[],
     parameterValues?: {[key:string]: string},
     setParameterValue: (id: string, value: string) => void
 }
 
+type State = {
+    innerScroll: boolean
+}
+
 @withRouter
-export default class EmbedFrame extends Component<*, Props, *> {
-    _getOptions() {
-        let options = querystring.parse(window.location.hash.replace(/^#/, ""));
-        for (var name in options) {
-            if (/^(true|false|-?\d+(\.\d+)?)$/.test(options[name])) {
-                options[name] = JSON.parse(options[name]);
+export default class EmbedFrame extends Component {
+    props: Props;
+    state: State = {
+        innerScroll: true
+    }
+
+    componentWillMount() {
+        if (window.iFrameResizer) {
+            console.error("iFrameResizer resizer already defined.")
+        } else {
+            window.iFrameResizer = {
+                autoResize: true,
+                heightCalculationMethod: "bodyScroll",
+                readyCallback: () => {
+                    this.setState({ innerScroll: false })
+                }
             }
+            // $FlowFixMe: flow doesn't know about require.ensure
+            require.ensure([], () => {
+                require("iframe-resizer/js/iframeResizer.contentWindow.js")
+            });
         }
-        return { ...DEFAULT_OPTIONS, ...options };
     }
 
     render() {
         const { className, children, actionButtons, location, parameters, parameterValues, setParameterValue } = this.props;
+        const { innerScroll } = this.state;
+
         const footer = true;
 
-        const { bordered, titled, theme } = this._getOptions();
+        const { bordered, titled, theme } = { ...DEFAULT_OPTIONS, ...parseHashOptions(location.hash) };
 
         const name = titled ? this.props.name : null;
 
         return (
             <div className={cx("EmbedFrame flex flex-column", className, {
+                "spread": innerScroll,
                 "bordered rounded shadowed": bordered,
                 [`Theme--${theme}`]: !!theme
             })}>
-                <div className="flex flex-column flex-full scroll-y relative">
+                <div className={cx("flex flex-column flex-full relative", { "scroll-y": innerScroll })}>
                     { name || (parameters && parameters.length > 0) ?
                         <div className="EmbedFrame-header flex align-center p1 sm-p2 lg-p3">
                             { name && (

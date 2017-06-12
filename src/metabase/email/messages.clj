@@ -4,17 +4,20 @@
   (:require [clojure.core.cache :as cache]
             [hiccup.core :refer [html]]
             [medley.core :as m]
-            (stencil [core :as stencil]
-                     [loader :as stencil-loader])
-            [toucan.db :as db]
-            (metabase [config :as config]
-                      [email :as email])
-            [metabase.public-settings :as public-settings]
+            [metabase
+             [config :as config]
+             [email :as email]
+             [public-settings :as public-settings]
+             [util :as u]]
             [metabase.pulse.render :as render]
-            [metabase.util :as u]
-            (metabase.util [quotation :as quotation]
-                           [urls :as url]))
-  (:import (java.io File FileOutputStream)
+            [metabase.util
+             [quotation :as quotation]
+             [urls :as url]]
+            [stencil
+             [core :as stencil]
+             [loader :as stencil-loader]]
+            [toucan.db :as db])
+  (:import [java.io File FileOutputStream]
            java.util.Arrays))
 
 ;; Dev only -- disable template caching
@@ -35,13 +38,13 @@
 
 (def ^:private ^:const abandonment-context
   {:heading      "We’d love your feedback."
-   :callToAction "It looks like RC Data Tool wasn’t quite a match for you. Would you mind taking a fast 5 question survey to help the RC Data Tool team understand why and make things better in the future?"
-   :link         "http://localhost/feedback/inactive"})
+   :callToAction "It looks like Metabase wasn’t quite a match for you. Would you mind taking a fast 5 question survey to help the Metabase team understand why and make things better in the future?"
+   :link         "http://www.metabase.com/feedback/inactive"})
 
 (def ^:private ^:const follow-up-context
-  {:heading      "We hope you've been enjoying RC Data Tool."
+  {:heading      "We hope you've been enjoying Metabase."
    :callToAction "Would you mind taking a fast 6 question survey to tell us how it’s going?"
-   :link         "http://localhost/feedback/active"})
+   :link         "http://www.metabase.com/feedback/active"})
 
 
 ;;; ### Public Interface
@@ -61,7 +64,7 @@
                                :logoHeader   true}
                               (random-quote-context)))]
     (email/send-message!
-      :subject      (str "You're invited to join " company "'s Data Tool")
+      :subject      (str "You're invited to join " company "'s Metabase")
       :recipients   [(:email invited)]
       :message-type :html
       :message      message-body)))
@@ -160,8 +163,8 @@
   [email msg-type]
   {:pre [(u/is-email? email) (contains? #{"abandon" "follow-up"} msg-type)]}
   (let [subject      (if (= "abandon" msg-type)
-                       "Help make RC Data Tool better."
-                       "Tell us how things are going.")
+                       "[Metabase] Help make Metabase better."
+                       "[Metabase] Tell us how things are going.")
         context      (merge notification-context
                             (random-quote-context)
                             (if (= "abandon" msg-type)

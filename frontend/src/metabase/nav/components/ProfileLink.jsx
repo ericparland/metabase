@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from "prop-types";
 import { Link } from "react-router";
 
 import OnClickOutsideWrapper from 'metabase/components/OnClickOutsideWrapper';
@@ -76,12 +77,13 @@ export default class ProfileLink extends Component {
                     <OnClickOutsideWrapper handleDismissal={this.closeDropdown}>
                         <div className="NavDropdown-content right">
                             <ul className="NavDropdown-content-layer">
-                                <li>
-                                    <Link to="/user/edit_current" data-metabase-event={"Navbar;Profile Dropdown;Edit Profile"} onClick={this.closeDropdown} className="Dropdown-item block text-white no-decoration">
-                                        Account Settings
-                                    </Link>
-                                </li>
-
+                              { !user.google_auth && !user.ldap_auth ?
+                                  <li>
+                                      <Link to="/user/edit_current" data-metabase-event={"Navbar;Profile Dropdown;Edit Profile"} onClick={this.closeDropdown} className="Dropdown-item block text-white no-decoration">
+                                          Account Settings
+                                      </Link>
+                                  </li>
+                                : null }
                                 { user.is_superuser && context !== 'admin' ?
                                     <li>
                                         <Link to="/admin" data-metabase-event={"Navbar;Profile Dropdown;Enter Admin"} onClick={this.closeDropdown} className="Dropdown-item block text-white no-decoration">
@@ -99,7 +101,7 @@ export default class ProfileLink extends Component {
                                 : null }
 
                                 <li>
-                                    <a data-metabase-event={"Navbar;Profile Dropdown;Help "+tag} className="Dropdown-item block text-white no-decoration" href={"http://www.localhost/docs/"+tag} target="_blank">
+                                    <a data-metabase-event={"Navbar;Profile Dropdown;Help "+tag} className="Dropdown-item block text-white no-decoration" href={"http://www.metabase.com/docs/"+tag} target="_blank">
                                         Help
                                     </a>
                                 </li>
@@ -114,7 +116,7 @@ export default class ProfileLink extends Component {
 
                                 <li>
                                     <a data-metabase-event={"Navbar;Profile Dropdown;About "+tag} onClick={this.openModal.bind(this, "about")} className="Dropdown-item block text-white no-decoration">
-                                        About RC Analytics tool
+                                        About Metabase
                                     </a>
                                 </li>
 
@@ -141,7 +143,7 @@ export default class ProfileLink extends Component {
                             <div className="text-brand pb2">
                                 <LogoIcon width={48} height={48} />
                             </div>
-                            <h2 style={{fontSize: "1.75em"}} className="text-dark">Thanks for using  RC Analytics tool!</h2>
+                            <h2 style={{fontSize: "1.75em"}} className="text-dark">Thanks for using Metabase!</h2>
                             <div className="pt2">
                                 <h3 className="text-dark mb1">You're on version {tag}</h3>
                                 <p className="text-grey-3 text-bold">Built on {date}</p>
@@ -155,7 +157,7 @@ export default class ProfileLink extends Component {
                             </div>
                         </div>
                         <div style={{borderWidth: "2px"}} className="p2 h5 text-centered text-grey-3 border-top">
-                            <span className="block">This tool is powered by <span className="text-bold">Metabase</span>. <span className="text-bold">Metabase</span> is a Trademark of Metabase, Inc</span>
+                            <span className="block"><span className="text-bold">Metabase</span> is a Trademark of Metabase, Inc</span>
                             <span>and is built with care in San Francisco, CA</span>
                         </div>
                     </Modal>

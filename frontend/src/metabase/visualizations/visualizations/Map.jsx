@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 
 import ChoroplethMap from "../components/ChoroplethMap.jsx";
 import PinMap from "../components/PinMap.jsx";
@@ -10,11 +10,13 @@ import { isNumeric, isLatitude, isLongitude, hasLatitudeAndLongitudeColumns } fr
 import { metricSetting, dimensionSetting, fieldSetting } from "metabase/visualizations/lib/settings";
 import MetabaseSettings from "metabase/lib/settings";
 
-import type { VisualizationProps } from "metabase/visualizations";
+import type { VisualizationProps } from "metabase/meta/types/Visualization";
 
 import _ from "underscore";
 
-export default class Map extends Component<*, VisualizationProps, *> {
+export default class Map extends Component {
+    props: VisualizationProps;
+
     static uiName = "Map";
     static identifier = "map";
     static iconName = "pinmap";

@@ -1,4 +1,4 @@
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 import ReactDOM from "react-dom";
 
 import { isObscured } from "metabase/lib/dom";
@@ -109,7 +109,10 @@ export default ComposedComponent => class extends Component {
             <a
                 id={triggerId}
                 ref="trigger"
-                onClick={!this.props.disabled && (() => this.toggle())}
+                onClick={(event) => {
+                    event.preventDefault()
+                    !this.props.disabled && this.toggle()
+                }}
                 className={cx(triggerClasses, isOpen && triggerClassesOpen, "no-decoration", {
                     'cursor-default': this.props.disabled
                 })}

@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 import { connect } from "react-redux";
 import { titleize } from "inflection";
 
@@ -14,14 +14,13 @@ import { getSignedPreviewUrl, getUnsignedPreviewUrl, getSignedToken } from "meta
 import { getSiteUrl, getEmbeddingSecretKey, getIsPublicSharingEnabled, getIsApplicationEmbeddingEnabled } from "metabase/selectors/settings";
 import { getUserIsAdmin } from "metabase/selectors/user";
 
-import type { Parameter, ParameterId } from "metabase/meta/types/Dashboard";
+import MetabaseAnalytics from "metabase/lib/analytics";
+
+import type { Parameter, ParameterId } from "metabase/meta/types/Parameter";
+import type { EmbeddableResource, EmbeddingParams } from "metabase/public/lib/types";
 
 export type Pane = "preview"|"code";
 export type EmbedType = null|"simple"|"application";
-
-export type EmbeddingParams = {
-    [key: string]: string
-}
 
 export type DisplayOptions = {
     theme: ?string,
@@ -29,19 +28,22 @@ export type DisplayOptions = {
     titled: boolean,
 }
 
-export type EmbeddableResource = {
-    id: string,
-    public_uuid: string,
-    embedding_params: EmbeddingParams
-}
-
 type Props = {
     className?: string,
-    siteUrl: string,
-    secretKey: string,
     resource: EmbeddableResource,
     resourceType: string,
     resourceParameters: Parameter[],
+
+    isAdmin: boolean,
+    siteUrl: string,
+    secretKey: string,
+
+    // Flow doesn't understand these are provided by @connect?
+    // isPublicSharingEnabled: bool,
+    // isApplicationEmbeddingEnabled: bool,
+
+    getPublicUrl: (resource: EmbeddableResource, extension: ?string) => string,
+
     onUpdateEnableEmbedding: (enable_embedding: bool) => Promise<void>,
     onUpdateEmbeddingParams: (embedding_params: EmbeddingParams) => Promise<void>,
     onCreatePublicLink: () => Promise<void>,
@@ -54,9 +56,8 @@ type State = {
     embedType: EmbedType,
     embeddingParams: EmbeddingParams,
     displayOptions: DisplayOptions,
-    parameterValues: { [id: ParameterId]: string }
+    parameterValues: { [id: ParameterId]: string },
 };
-
 
 const mapStateToProps = (state, props) => ({
     isAdmin:                        getUserIsAdmin(state, props),
@@ -67,7 +68,8 @@ const mapStateToProps = (state, props) => ({
 })
 
 @connect(mapStateToProps)
-export default class EmbedModalContent extends Component<*, Props, State> {
+export default class EmbedModalContent extends Component {
+    props: Props;
     state: State;
 
     constructor(props: Props) {
@@ -140,14 +142,6 @@ export default class EmbedModalContent extends Component<*, Props, State> {
 
         const params = this.getPreviewParams();
 
-        let iframeUrl;
-        if (embedType === "application") {
-            iframeUrl = getSignedPreviewUrl(siteUrl, resourceType, resource.id, params, displayOptions, secretKey, embeddingParams);
-        } else {
-            iframeUrl = getUnsignedPreviewUrl(siteUrl, resourceType, resource.public_uuid, displayOptions);
-        }
-        const token = getSignedToken(resourceType, resource.id, params, secretKey, embeddingParams);
-
         const previewParameters = resourceParameters.filter(p => embeddingParams[p.slug] === "locked");
 
         return (
@@ -163,45 +157,57 @@ export default class EmbedModalContent extends Component<*, Props, State> {
                         className="text-grey-2 text-grey-4-hover cursor-pointer p2 ml-auto"
                         name="close"
                         size={24}
-                        onClick={onClose}
+                        onClick={() => {
+                            MetabaseAnalytics.trackEvent("Sharing Modal", "Modal Closed")
+                            onClose()
+                        }}
                     />
                 </div>
-                <div className="flex flex-full">
-                    { embedType == null ?
-                        <div className="flex-full ml-auto mr-auto" style={{ maxWidth: 1040 }}>
+                { embedType == null ?
+                    <div className="flex-full">
+                        {/* Center only using margins because  */}
+                        <div className="ml-auto mr-auto" style={{maxWidth: 1040}}>
                             <SharingPane
+                                // $FlowFixMe: Flow doesn't understand these are provided by @connect?
                                 {...this.props}
-                                publicUrl={iframeUrl}
-                                iframeUrl={iframeUrl}
-                                onChangeEmbedType={(embedType) => this.setState({ embedType })}
+                                publicUrl={getUnsignedPreviewUrl(siteUrl, resourceType, resource.public_uuid, displayOptions)}
+                                iframeUrl={getUnsignedPreviewUrl(siteUrl, resourceType, resource.public_uuid, displayOptions)}
+                                onChangeEmbedType={(embedType) => this.setState({embedType})}
                             />
                         </div>
+                    </div>
                     : embedType === "application" ?
-                        <AdvancedEmbedPane
-                            pane={pane}
-                            resource={resource}
-                            resourceType={resourceType}
-                            embedType={embedType}
-                            token={token}
-                            iframeUrl={iframeUrl}
-                            siteUrl={siteUrl}
-                            secretKey={secretKey}
-                            params={params}
-                            displayOptions={displayOptions}
-                            previewParameters={previewParameters}
-                            parameterValues={parameterValues}
-                            resourceParameters={resourceParameters}
-                            embeddingParams={embeddingParams}
-                            onChangeDisplayOptions={(displayOptions) => this.setState({ displayOptions })}
-                            onChangeEmbeddingParameters={(embeddingParams) => this.setState({ embeddingParams })}
-                            onChangeParameterValue={(id, value) => this.setState({ parameterValues: { ...parameterValues, [id]: value }})}
-                            onChangePane={(pane) => this.setState({ pane })}
-                            onSave={this.handleSave}
-                            onUnpublish={this.handleUnpublish}
-                            onDiscard={this.handleDiscard}
-                        />
-                : null }
-                </div>
+                        <div className="flex flex-full">
+                            <AdvancedEmbedPane
+                                pane={pane}
+                                resource={resource}
+                                resourceType={resourceType}
+                                embedType={embedType}
+                                token={getSignedToken(resourceType, resource.id, params, secretKey, embeddingParams)}
+                                iframeUrl={getSignedPreviewUrl(siteUrl, resourceType, resource.id, params, displayOptions, secretKey, embeddingParams)}
+                                siteUrl={siteUrl}
+                                secretKey={secretKey}
+                                params={params}
+                                displayOptions={displayOptions}
+                                previewParameters={previewParameters}
+                                parameterValues={parameterValues}
+                                resourceParameters={resourceParameters}
+                                embeddingParams={embeddingParams}
+                                onChangeDisplayOptions={(displayOptions) => this.setState({displayOptions})}
+                                onChangeEmbeddingParameters={(embeddingParams) => this.setState({embeddingParams})}
+                                onChangeParameterValue={(id, value) => this.setState({
+                                    parameterValues: {
+                                        ...parameterValues,
+                                        [id]: value
+                                    }
+                                })}
+                                onChangePane={(pane) => this.setState({pane})}
+                                onSave={this.handleSave}
+                                onUnpublish={this.handleUnpublish}
+                                onDiscard={this.handleDiscard}
+                            />
+                        </div>
+                        : null }
             </div>
         );
     }

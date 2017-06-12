@@ -1,5 +1,6 @@
 /* eslint "react/prop-types": "warn" */
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 import Select from "metabase/components/Select.jsx";
 
@@ -36,7 +37,7 @@ const MONTH_DAY_OPTIONS = [
 const CHANNEL_NOUN_PLURAL = {
     "email": "Emails",
     "slack": "Slack messages",
-    "glip": "Glip messages"
+    "Glip": "Glip messages",
 };
 
 export default class SchedulePicker extends Component {
@@ -57,6 +58,7 @@ export default class SchedulePicker extends Component {
                     value={_.find(MONTH_DAY_OPTIONS, (o) => o.value === c.schedule_frame)}
                     options={MONTH_DAY_OPTIONS}
                     optionNameFn={o => o.name}
+                    className="bg-white"
                     optionValueFn={o => o.value}
                     onChange={(o) => this.props.onPropertyChange("schedule_frame", o) }
                 />
@@ -67,6 +69,7 @@ export default class SchedulePicker extends Component {
                             options={DAY_OPTIONS}
                             optionNameFn={o => o.name}
                             optionValueFn={o => o.value}
+                            className="bg-white"
                             onChange={(o) => this.props.onPropertyChange("schedule_day", o) }
                         />
                     </span>
@@ -84,6 +87,7 @@ export default class SchedulePicker extends Component {
                     options={DAY_OF_WEEK_OPTIONS}
                     optionNameFn={o => o.name}
                     optionValueFn={o => o.value}
+                    className="bg-white"
                     onChange={(o) => this.props.onPropertyChange("schedule_day", o) }
                 />
             </span>

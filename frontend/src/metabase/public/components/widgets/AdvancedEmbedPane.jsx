@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React from "react";
 
 import ToggleLarge from "metabase/components/ToggleLarge";
 import Button from "metabase/components/Button";
@@ -10,8 +10,9 @@ import AdvancedSettingsPane from "./AdvancedSettingsPane";
 import PreviewPane from "./PreviewPane";
 import EmbedCodePane from "./EmbedCodePane";
 
-import type { Parameter, ParameterId } from "metabase/meta/types/Dashboard";
-import type { Pane, EmbedType, EmbeddableResource, EmbeddingParams, DisplayOptions } from "./EmbedModalContent";
+import type { Parameter, ParameterId } from "metabase/meta/types/Parameter";
+import type { Pane, EmbedType, DisplayOptions } from "./EmbedModalContent";
+import type { EmbeddableResource, EmbeddingParams } from "metabase/public/lib/types";
 
 import _ from "underscore";
 

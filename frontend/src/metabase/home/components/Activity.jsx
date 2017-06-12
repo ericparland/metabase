@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from "prop-types";
 import { Link } from "react-router";
 import _ from 'underscore';
 
@@ -6,7 +7,7 @@ import LoadingAndErrorWrapper from 'metabase/components/LoadingAndErrorWrapper.j
 import ActivityItem from './ActivityItem.jsx';
 import ActivityStory from './ActivityStory.jsx';
 
-import Urls from 'metabase/lib/urls';
+import * as Urls from "metabase/lib/urls";
 
 export default class Activity extends Component {
 
@@ -70,7 +71,7 @@ export default class Activity extends Component {
         } else if (user) {
             return user.first_name;
         } else {
-            return "RC Data Tool";
+            return "Metabase";
         }
     }
 
@@ -130,7 +131,7 @@ export default class Activity extends Component {
                 break;
             case "install":
                 description.userName = "Hello World!";
-                description.summary = "RC Data Tool is up and running.";
+                description.summary = "Metabase is up and running.";
                 break;
             case "metric-create":
                 if(item.model_exists) {
@@ -213,7 +214,7 @@ export default class Activity extends Component {
             case "dashboard-remove-cards":
                 description.body = item.details.dashcards[0].name;
                 if (item.details.dashcards[0].exists) {
-                    description.bodyLink = Urls.card(item.details.dashcards[0].card_id);
+                    description.bodyLink = Urls.question(item.details.dashcards[0].card_id);
                 }
                 break;
             case "metric-create":

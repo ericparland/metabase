@@ -1,11 +1,10 @@
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 import ReactDOM from "react-dom";
 import styles from "./Legend.css";
 
 import Icon from "metabase/components/Icon.jsx";
 import LegendItem from "./LegendItem.jsx";
-
-import Urls from "metabase/lib/urls";
 
 import cx from "classnames";
 
@@ -26,14 +25,15 @@ export default class LegendHeader extends Component {
         hovered: PropTypes.object,
         onHoverChange: PropTypes.func,
         onRemoveSeries: PropTypes.func,
+        onChangeCardAndRun: PropTypes.func,
         actionButtons: PropTypes.node,
-        linkToCard: PropTypes.bool,
         description: PropTypes.string
     };
 
     static defaultProps = {
         series: [],
-        settings: {}
+        settings: {},
+        visualizationIsClickable: () => false
     };
 
     componentDidMount() {
@@ -48,12 +48,13 @@ export default class LegendHeader extends Component {
     }
 
     render() {
-        const { series, hovered, onRemoveSeries, actionButtons, onHoverChange, linkToCard, settings, description } = this.props;
+        const { series, hovered, onRemoveSeries, actionButtons, onHoverChange, onChangeCardAndRun, settings, description, onVisualizationClick, visualizationIsClickable } = this.props;
         const showDots = series.length > 1;
         const isNarrow = this.state.width < 150;
         const showTitles = !showDots || !isNarrow;
 
         let colors = settings["graph.colors"] || DEFAULT_COLORS;
+
         return (
             <div  className={cx(styles.LegendHeader, "Card-title mx1 flex flex-no-shrink flex-row align-center")}>
                 { series.map((s, index) => [
@@ -61,14 +62,18 @@ export default class LegendHeader extends Component {
                         key={index}
                         title={s.card.name}
                         description={description}
-                        href={linkToCard && s.card.id && Urls.card(s.card.id)}
                         color={colors[index % colors.length]}
                         showDot={showDots}
                         showTitle={showTitles}
                         isMuted={hovered && hovered.index != null && index !== hovered.index}
                         onMouseEnter={() => onHoverChange && onHoverChange({ index })}
                         onMouseLeave={() => onHoverChange && onHoverChange(null) }
-                        />,
+                        onClick={s.clicked && visualizationIsClickable(s.clicked) ?
+                            ((e) => onVisualizationClick({ ...s.clicked, element: e.currentTarget }))
+                        : onChangeCardAndRun ?
+                            (() => onChangeCardAndRun({ nextCard: s.card, seriesIndex: index }))
+                        : null }
+                    />,
                     onRemoveSeries && index > 0 &&
                       <Icon
                           name="close"

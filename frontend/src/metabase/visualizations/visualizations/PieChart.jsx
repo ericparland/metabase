@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 import ReactDOM from "react-dom";
 import styles from "./PieChart.css";
 
@@ -29,11 +29,11 @@ const OTHER_SLICE_MIN_PERCENTAGE = 0.003;
 
 const PERCENT_REGEX = /percent/i;
 
-import type { VisualizationProps } from "metabase/visualizations";
+import type { VisualizationProps } from "metabase/meta/types/Visualization";
 
-type Props = VisualizationProps;
+export default class PieChart extends Component {
+    props: VisualizationProps;
 
-export default class PieChart extends Component<*, Props, *> {
     static uiName = "Pie";
     static identifier = "pie";
     static iconName = "pie";
@@ -90,7 +90,7 @@ export default class PieChart extends Component<*, Props, *> {
     }
 
     render() {
-        const { series, hovered, onHoverChange, className, gridSize, settings } = this.props;
+        const { series, hovered, onHoverChange, visualizationIsClickable, onVisualizationClick, className, gridSize, settings } = this.props;
 
         const [{ data: { cols, rows }}] = series;
         const dimensionIndex = _.findIndex(cols, (col) => col.name === settings["pie.dimension"]);
@@ -154,7 +154,7 @@ export default class PieChart extends Component<*, Props, *> {
             .outerRadius(OUTER_RADIUS)
             .innerRadius(OUTER_RADIUS * INNER_RADIUS_RATIO);
 
-        let hoverForIndex = (index, event) => ({
+        const hoverForIndex = (index, event) => ({
             index,
             event: event && event.nativeEvent,
             data: slices[index] === otherSlice ?
@@ -170,12 +170,24 @@ export default class PieChart extends Component<*, Props, *> {
 
         let value, title;
         if (hovered && hovered.index != null && slices[hovered.index] !== otherSlice) {
-            title = slices[hovered.index].key;
-            value = slices[hovered.index].value;
+            title = formatDimension(slices[hovered.index].key);
+            value = formatMetric(slices[hovered.index].value);
         } else {
             title = "Total";
             value = formatMetric(total);
         }
+
+        const getSliceClickObject = (index) => ({
+            value:      slices[index].value,
+            column:     cols[metricIndex],
+            dimensions: [{
+                value: slices[index].key,
+                column: cols[dimensionIndex],
+            }]
+        })
+
+        const isClickable = onVisualizationClick && visualizationIsClickable(getSliceClickObject(0));
+        const getSliceIsClickable = (index) => isClickable && slices[index] !== otherSlice;
 
         return (
             <ChartWithLegend
@@ -201,6 +213,13 @@ export default class PieChart extends Component<*, Props, *> {
                                         opacity={(hovered && hovered.index != null && hovered.index !== index) ? 0.3 : 1}
                                         onMouseMove={(e) => onHoverChange && onHoverChange(hoverForIndex(index, e))}
                                         onMouseLeave={() => onHoverChange && onHoverChange(null)}
+                                        className={cx({ "cursor-pointer": getSliceIsClickable(index) })}
+                                        onClick={getSliceIsClickable(index) && ((e) =>
+                                            onVisualizationClick({
+                                                ...getSliceClickObject(index),
+                                                event: e.nativeEvent
+                                            })
+                                        )}
                                     />
                                 )}
                             </g>

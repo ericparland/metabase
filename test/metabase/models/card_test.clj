@@ -1,19 +1,20 @@
 (ns metabase.models.card-test
   (:require [expectations :refer :all]
-            [metabase.api.common :refer [*current-user-permissions-set* *is-superuser?*]]
-            [toucan.db :as db]
-            [toucan.util.test :as tt]
-            (metabase.models [card :refer :all]
-                             [dashboard :refer [Dashboard]]
-                             [dashboard-card :refer [DashboardCard]]
-                             [interface :as mi]
-                             [permissions :as perms])
+            [metabase.api.common :refer [*current-user-permissions-set*]]
+            [metabase.models
+             [card :refer :all]
+             [dashboard :refer [Dashboard]]
+             [dashboard-card :refer [DashboardCard]]
+             [interface :as mi]
+             [permissions :as perms]]
             [metabase.query-processor.expand :as ql]
-            [metabase.test.data :refer [id]]
+            [metabase.test
+             [data :as data]
+             [util :as tu]]
             [metabase.test.data.users :refer :all]
-            [metabase.test.util :refer [random-name], :as tu]
-            [metabase.util :as u]))
-
+            [metabase.util :as u]
+            [toucan.db :as db]
+            [toucan.util.test :as tt]))
 
 (defn- create-dash! [dash-name]
   ((user->client :rasta) :post 200 "dashboard" {:name dash-name}))
@@ -25,9 +26,9 @@
     (let [get-dashboard-count (fn [] (dashboard-count (Card card-id)))]
 
       [(get-dashboard-count)
-       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash! (random-name))), :parameter_mappings [])
+       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash! (tu/random-name))), :parameter_mappings [])
            (get-dashboard-count))
-       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash! (random-name))), :parameter_mappings [])
+       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash! (tu/random-name))), :parameter_mappings [])
            (get-dashboard-count))])))
 
 
@@ -59,25 +60,25 @@
 
 (expect
   false
-  (tt/with-temp Card [card {:dataset_query {:database (id), :type "native"}}]
+  (tt/with-temp Card [card {:dataset_query {:database (data/id), :type "native"}}]
     (binding [*current-user-permissions-set* (delay #{})]
       (mi/can-read? card))))
 
 (expect
-  (tt/with-temp Card [card {:dataset_query {:database (id), :type "native"}}]
-    (binding [*current-user-permissions-set* (delay #{(perms/native-read-path (id))})]
+  (tt/with-temp Card [card {:dataset_query {:database (data/id), :type "native"}}]
+    (binding [*current-user-permissions-set* (delay #{(perms/native-read-path (data/id))})]
       (mi/can-read? card))))
 
 ;; in order to *write* a native card user should need native readwrite access
 (expect
   false
-  (tt/with-temp Card [card {:dataset_query {:database (id), :type "native"}}]
-    (binding [*current-user-permissions-set* (delay #{(perms/native-read-path (id))})]
+  (tt/with-temp Card [card {:dataset_query {:database (data/id), :type "native"}}]
+    (binding [*current-user-permissions-set* (delay #{(perms/native-read-path (data/id))})]
       (mi/can-write? card))))
 
 (expect
-  (tt/with-temp Card [card {:dataset_query {:database (id), :type "native"}}]
-    (binding [*current-user-permissions-set* (delay #{(perms/native-readwrite-path (id))})]
+  (tt/with-temp Card [card {:dataset_query {:database (data/id), :type "native"}}]
+    (binding [*current-user-permissions-set* (delay #{(perms/native-readwrite-path (data/id))})]
       (mi/can-write? card))))
 
 
@@ -99,24 +100,24 @@
 
 
 (defn- mbql [query]
-  {:database (id)
+  {:database (data/id)
    :type     :query
    :query    query})
 
 ;; MBQL w/o JOIN
 (expect
-  #{(perms/object-path (id) "PUBLIC" (id :venues))}
+  #{(perms/object-path (data/id) "PUBLIC" (data/id :venues))}
   (query-perms-set (mbql (ql/query
-                           (ql/source-table (id :venues))))
+                           (ql/source-table (data/id :venues))))
                    :read))
 
 ;; MBQL w/ JOIN
 (expect
-  #{(perms/object-path (id) "PUBLIC" (id :checkins))
-    (perms/object-path (id) "PUBLIC" (id :venues))}
+  #{(perms/object-path (data/id) "PUBLIC" (data/id :checkins))
+    (perms/object-path (data/id) "PUBLIC" (data/id :venues))}
   (query-perms-set (mbql (ql/query
-                           (ql/source-table (id :checkins))
-                           (ql/order-by (ql/asc (ql/fk-> (id :checkins :venue_id) (id :venues :name))))))
+                           (ql/source-table (data/id :checkins))
+                           (ql/order-by (ql/asc (ql/fk-> (data/id :checkins :venue_id) (data/id :venues :name))))))
                    :read))
 
 ;; invalid/legacy card should return perms for something that doesn't exist so no one gets to see it

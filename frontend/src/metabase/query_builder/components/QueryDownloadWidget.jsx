@@ -1,5 +1,5 @@
-import React, { Component, PropTypes } from "react";
-import ReactDOM from "react-dom";
+import React from "react";
+import PropTypes from "prop-types";
 
 import PopoverWithTrigger from "metabase/components/PopoverWithTrigger.jsx";
 import Icon from "metabase/components/Icon.jsx";
@@ -8,10 +8,12 @@ import Tooltip from "metabase/components/Tooltip.jsx";
 
 import FieldSet from "metabase/components/FieldSet.jsx";
 
-import Urls from "metabase/lib/urls";
+import * as Urls from "metabase/lib/urls";
 
 import _ from "underscore";
 import cx from "classnames";
+
+const EXPORT_FORMATS = ["csv", "xlsx", "json"];
 
 const QueryDownloadWidget = ({ className, card, result, uuid, token }) =>
     <PopoverWithTrigger
@@ -22,7 +24,7 @@ const QueryDownloadWidget = ({ className, card, result, uuid, token }) =>
         }
         triggerClasses={cx(className, "text-brand-hover")}
     >
-        <div className="p2" style={{ maxWidth: 300 }}>
+        <div className="p2" style={{ maxWidth: 320 }}>
             <h4>Download</h4>
             { result.data.rows_truncated != null &&
                 <FieldSet className="my2 text-gold border-gold" legend="Warning">
@@ -31,15 +33,15 @@ const QueryDownloadWidget = ({ className, card, result, uuid, token }) =>
                 </FieldSet>
             }
             <div className="flex flex-row mt2">
-                {["csv", "json"].map(type =>
+                {EXPORT_FORMATS.map(type =>
                     uuid ?
-                        <PublicQueryButton type={type} uuid={uuid} className="mr1 text-uppercase text-default" />
+                        <PublicQueryButton key={type} type={type} uuid={uuid} className="mr1 text-uppercase text-default" />
                     : token ?
-                        <EmbedQueryButton type={type} token={token} className="mr1 text-uppercase text-default" />
+                        <EmbedQueryButton key={type} type={type} token={token} className="mr1 text-uppercase text-default" />
                     : card && card.id ?
-                        <SavedQueryButton type={type} card={card} result={result} className="mr1 text-uppercase text-default" />
+                        <SavedQueryButton key={type} type={type} card={card} result={result} className="mr1 text-uppercase text-default" />
                     : card && !card.id ?
-                        <UnsavedQueryButton type={type} card={card} result={result} className="mr1 text-uppercase text-default" />
+                        <UnsavedQueryButton key={type} type={type} card={card} result={result} className="mr1 text-uppercase text-default" />
                     :
                       null
                 )}
@@ -50,7 +52,7 @@ const QueryDownloadWidget = ({ className, card, result, uuid, token }) =>
 const UnsavedQueryButton = ({ className, type, result: { json_query }, card }) =>
     <DownloadButton
         className={className}
-        url={`/api/dataset/${type}`}
+        url={`api/dataset/${type}`}
         params={{ query: JSON.stringify(_.omit(json_query, "constraints")) }}
         extensions={[type]}
     >
@@ -60,7 +62,7 @@ const UnsavedQueryButton = ({ className, type, result: { json_query }, card }) =
 const SavedQueryButton = ({ className, type, result: { json_query }, card }) =>
     <DownloadButton
         className={className}
-        url={`/api/card/${card.id}/query/${type}`}
+        url={`api/card/${card.id}/query/${type}`}
         params={{ parameters: JSON.stringify(json_query.parameters) }}
         extensions={[type]}
     >

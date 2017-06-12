@@ -1,16 +1,17 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
-import ReactDOM from "react-dom";
+import React, { Component } from "react";
 
 import BarChart from "metabase/visualizations/visualizations/BarChart.jsx";
 
 import { getSettings } from "metabase/visualizations/lib/settings";
 import { assocIn } from "icepick";
 
-import type { VisualizationProps } from "metabase/visualizations";
+import type { VisualizationProps } from "metabase/meta/types/Visualization";
 
-export default class BarFunnel extends Component<*, VisualizationProps, *> {
+export default class BarFunnel extends Component {
+    props: VisualizationProps;
+
     render() {
         return (
             <BarChart

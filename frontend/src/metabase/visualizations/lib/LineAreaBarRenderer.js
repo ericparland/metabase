@@ -5,7 +5,7 @@ import d3 from "d3";
 import dc from "dc";
 import moment from "moment";
 import _ from "underscore";
-import { updateIn } from "icepick";
+import { updateIn, getIn } from "icepick";
 
 import {
     getAvailableCanvasWidth,
@@ -32,6 +32,14 @@ import { determineSeriesIndexFromElement } from "./tooltip";
 
 import { formatValue } from "metabase/lib/formatting";
 import { parseTimestamp } from "metabase/lib/time";
+import { isStructured } from "metabase/meta/Card";
+
+import { datasetContainsNoResults } from "metabase/lib/dataset";
+import { updateDateTimeFilter, updateNumericFilter } from "metabase/qb/lib/actions";
+
+import { initBrush } from "./graph/brush";
+
+import type { SingleSeries, ClickObject } from "metabase/meta/types/Visualization"
 
 const MIN_PIXELS_PER_TICK = { x: 100, y: 32 };
 const BAR_PADDING_RATIO = 0.2;
@@ -45,7 +53,7 @@ const DOT_OVERLAP_COUNT_LIMIT = 8;
 const DOT_OVERLAP_RATIO = 0.10;
 const DOT_OVERLAP_DISTANCE = 8;
 
-const VORONOI_TARGET_RADIUS = 50;
+const VORONOI_TARGET_RADIUS = 25;
 const VORONOI_MAX_POINTS = 300;
 
 // min margin
@@ -80,15 +88,19 @@ function adjustTicksIfNeeded(axis, axisSize: number, minPixelsPerTick: number) {
     }
 }
 
-function getDcjsChartType(cardType) {
+import { lineAddons } from "./graph/addons"
+
+function getDcjsChart(cardType, parent) {
     switch (cardType) {
-        case "line": return "lineChart";
-        case "area": return "lineChart";
-        case "bar":     return "barChart";
-        case "scatter": return "bubbleChart";
-        default:     return "barChart";
+        case "line":    return lineAddons(dc.lineChart(parent));
+        case "area":    return lineAddons(dc.lineChart(parent));
+        case "bar":     return dc.barChart(parent);
+        case "scatter": return dc.bubbleChart(parent);
+        default:        return dc.barChart(parent);
     }
 }
+
+
 
 function initChart(chart, element) {
     // set the bounds
@@ -96,18 +108,22 @@ function initChart(chart, element) {
     chart.height(getAvailableCanvasHeight(element));
     // disable animations
     chart.transitionDuration(0);
-    // if the chart supports 'brushing' (brush-based range filter), disable this since it intercepts mouse hovers which means we can't see tooltips
+    // disable brush
     if (chart.brushOn) {
         chart.brushOn(false);
     }
 }
 
 function applyChartTimeseriesXAxis(chart, settings, series, xValues, xDomain, xInterval) {
+    // find the first nonempty single series
+    // $FlowFixMe
+    const firstSeries: SingleSeries = _.find(series, (s) => !datasetContainsNoResults(s.data));
+
     // setup an x-axis where the dimension is a timeseries
-    let dimensionColumn = series[0].data.cols[0];
+    let dimensionColumn = firstSeries.data.cols[0];
 
     // get the data's timezone offset from the first row
-    let dataOffset = parseTimestamp(series[0].data.rows[0][0]).utcOffset() / 60;
+    let dataOffset = parseTimestamp(firstSeries.data.rows[0][0]).utcOffset() / 60;
 
     // compute the data interval
     let dataInterval = xInterval;
@@ -123,15 +139,26 @@ function applyChartTimeseriesXAxis(chart, settings, series, xValues, xDomain, xI
             dimensionColumn = { ...dimensionColumn, unit: dataInterval.interval };
         }
 
+        // special handling for weeks
+        // TODO: are there any other cases where we should do this?
+        if (dataInterval.interval === "week") {
+            // if tick interval is compressed then show months instead of weeks because they're nicer formatted
+            const newTickInterval = computeTimeseriesTicksInterval(xDomain, tickInterval, chart.width(), MIN_PIXELS_PER_TICK.x);
+            if (newTickInterval.interval !== tickInterval.interval || newTickInterval.count !== tickInterval.count) {
+                dimensionColumn = { ...dimensionColumn, unit: "month" },
+                tickInterval = { interval: "month", count: 1 };
+            }
+        }
+
         chart.xAxis().tickFormat(timestamp => {
             // timestamp is a plain Date object which discards the timezone,
             // so add it back in so it's formatted correctly
             const timestampFixed = moment(timestamp).utcOffset(dataOffset).format();
-            return formatValue(timestampFixed, { column: dimensionColumn })
+            return formatValue(timestampFixed, { column: dimensionColumn, type: "axis" })
         });
 
         // Compute a sane interval to display based on the data granularity, domain, and chart width
-        tickInterval = computeTimeseriesTicksInterval(xDomain, dataInterval, chart.width(), MIN_PIXELS_PER_TICK.x, );
+        tickInterval = computeTimeseriesTicksInterval(xDomain, tickInterval, chart.width(), MIN_PIXELS_PER_TICK.x);
         chart.xAxis().ticks(d3.time[tickInterval.interval], tickInterval.count);
     } else {
         chart.xAxis().ticks(0);
@@ -149,7 +176,10 @@ function applyChartTimeseriesXAxis(chart, settings, series, xValues, xDomain, xI
 }
 
 function applyChartQuantitativeXAxis(chart, settings, series, xValues, xDomain, xInterval) {
-    const dimensionColumn = series[0].data.cols[0];
+    // find the first nonempty single series
+    // $FlowFixMe
+    const firstSeries: SingleSeries = _.find(series, (s) => !datasetContainsNoResults(s.data));
+    const dimensionColumn = firstSeries.data.cols[0];
 
     if (settings["graph.x_axis.labels_enabled"]) {
         chart.xAxisLabel(settings["graph.x_axis.title_text"] || getFriendlyName(dimensionColumn), X_LABEL_PADDING);
@@ -187,7 +217,11 @@ function applyChartQuantitativeXAxis(chart, settings, series, xValues, xDomain, 
 }
 
 function applyChartOrdinalXAxis(chart, settings, series, xValues) {
-    const dimensionColumn = series[0].data.cols[0];
+    // find the first nonempty single series
+    // $FlowFixMe
+    const firstSeries: SingleSeries = _.find(series, (s) => !datasetContainsNoResults(s.data));
+
+    const dimensionColumn = firstSeries.data.cols[0];
 
     if (settings["graph.x_axis.labels_enabled"]) {
         chart.xAxisLabel(settings["graph.x_axis.title_text"] || getFriendlyName(dimensionColumn), X_LABEL_PADDING);
@@ -293,73 +327,151 @@ function applyChartYAxis(chart, settings, series, yExtent, axisName) {
     }
 }
 
-function applyChartTooltips(chart, series, isStacked, onHoverChange) {
+function applyChartTooltips(chart, series, isStacked, isScalarSeries, onHoverChange, onVisualizationClick) {
     let [{ data: { cols } }] = series;
     chart.on("renderlet.tooltips", function(chart) {
-        chart.selectAll(".bar, .dot, .area, .line, .bubble")
-            .on("mousemove", function(d, i) {
+        chart.selectAll("title").remove();
+
+        if (onHoverChange) {
+            chart.selectAll(".bar, .dot, .area, .line, .bubble")
+                .on("mousemove", function(d, i) {
+                    const seriesIndex = determineSeriesIndexFromElement(this, isStacked);
+                    const card = series[seriesIndex].card;
+                    const isSingleSeriesBar = this.classList.contains("bar") && series.length === 1;
+                    const isArea = this.classList.contains("area");
+
+                    let data = [];
+                    if (Array.isArray(d.key)) { // scatter
+                        if (d.key._origin) {
+                            data = d.key._origin.row.map((value, index) => {
+                                const col = d.key._origin.cols[index];
+                                return { key: getFriendlyName(col), value: value, col };
+                            });
+                        } else {
+                            data = d.key.map((value, index) => (
+                                { key: getFriendlyName(cols[index]), value: value, col: cols[index] }
+                            ));
+                        }
+                    } else if (d.data) { // line, area, bar
+                        if (!isSingleSeriesBar) {
+                            cols = series[seriesIndex].data.cols;
+                        }
+                        data = [
+                            { key: getFriendlyName(cols[0]), value: d.data.key, col: cols[0] },
+                            { key: getFriendlyName(cols[1]), value: d.data.value, col: cols[1] }
+                        ];
+                    }
+
+                    if (data && series.length > 1) {
+                        if (card._breakoutColumn) {
+                            data.unshift({
+                                key: getFriendlyName(card._breakoutColumn),
+                                value: card._breakoutValue,
+                                col: card._breakoutColumn
+                            });
+                        }
+                    }
+
+                    data = _.uniq(data, (d) => d.col);
+
+                    onHoverChange({
+                        // for single series bar charts, fade the series and highlght the hovered element with CSS
+                        index: isSingleSeriesBar ? -1 : seriesIndex,
+                        // for area charts, use the mouse location rather than the DOM element
+                        element: isArea ? null : this,
+                        event: isArea ? d3.event : null,
+                        data: data.length > 0 ? data : null,
+                    });
+                })
+                .on("mouseleave", function() {
+                    if (!onHoverChange) {
+                        return;
+                    }
+                    onHoverChange(null);
+                })
+        }
+
+        if (onVisualizationClick) {
+            const onClick = function(d) {
                 const seriesIndex = determineSeriesIndexFromElement(this, isStacked);
                 const card = series[seriesIndex].card;
                 const isSingleSeriesBar = this.classList.contains("bar") && series.length === 1;
-                const isArea = this.classList.contains("area");
 
-                let data = [];
+                let clicked: ?ClickObject;
                 if (Array.isArray(d.key)) { // scatter
-                    if (d.key._origin) {
-                        data = d.key._origin.row.map((value, index) => {
-                            const col = d.key._origin.cols[index];
-                            return { key: getFriendlyName(col), value: value, col };
-                        });
-                    } else {
-                        data = d.key.map((value, index) => (
-                            { key: getFriendlyName(cols[index]), value: value, col: cols[index] }
-                        ));
+                    clicked = {
+                        value: d.key[2],
+                        column: cols[2],
+                        dimensions: [
+                            { value: d.key[0], column: cols[0] },
+                            { value: d.key[1], column: cols[1] }
+                        ].filter(({ column }) =>
+                            // don't include aggregations since we can't filter on them
+                            column.source !== "aggregation"
+                        ),
+                        origin: d.key._origin
                     }
+                } else if (isScalarSeries) {
+                    // special case for multi-series scalar series, which should be treated as scalars
+                    clicked = {
+                        value: d.data.value,
+                        column: series[seriesIndex].data.cols[1]
+                    };
                 } else if (d.data) { // line, area, bar
                     if (!isSingleSeriesBar) {
                         cols = series[seriesIndex].data.cols;
                     }
-                    data = [
-                        { key: getFriendlyName(cols[0]), value: d.data.key, col: cols[0] },
-                        { key: getFriendlyName(cols[1]), value: d.data.value, col: cols[1] }
-                    ];
+                    clicked = {
+                        value: d.data.value,
+                        column: cols[1],
+                        dimensions: [
+                            { value: d.data.key, column: cols[0] }
+                        ]
+                    }
+                } else {
+                    clicked = {
+                        dimensions: []
+                    };
                 }
 
-                if (data && series.length > 1) {
+                // handle multiseries
+                if (clicked && series.length > 1) {
                     if (card._breakoutColumn) {
-                        data.unshift({
-                            key: getFriendlyName(card._breakoutColumn),
+                        // $FlowFixMe
+                        clicked.dimensions.push({
                             value: card._breakoutValue,
-                            col: card._breakoutColumn
+                            column: card._breakoutColumn
                         });
                     }
                 }
 
-                data = _.uniq(data, (d) => d.col);
+                if (card._seriesIndex != null) {
+                    // $FlowFixMe
+                    clicked.seriesIndex = card._seriesIndex;
+                }
 
-                onHoverChange && onHoverChange({
-                    // for single series bar charts, fade the series and highlght the hovered element with CSS
-                    index: isSingleSeriesBar ? -1 : seriesIndex,
-                    // for area charts, use the mouse location rather than the DOM element
-                    element: isArea ? null : this,
-                    event: isArea ? d3.event : null,
-                    data: data.length > 0 ? data : null,
-                });
-            })
-            .on("mouseleave", function() {
-                onHoverChange && onHoverChange(null);
-            });
+                if (clicked) {
+                    const isLine = this.classList.contains("dot");
+                    onVisualizationClick({
+                        ...clicked,
+                        element: isLine ? this : null,
+                        event: isLine ? null : d3.event,
+                    });
+                }
+            }
 
-        chart.selectAll("title").remove();
+            // for some reason interaction with brush requires we use click for .dot and .bubble but mousedown for bar
+            chart.selectAll(".dot, .bubble")
+                .style({ "cursor": "pointer" })
+                .on("click", onClick);
+            chart.selectAll(".bar")
+                .style({ "cursor": "pointer" })
+                .on("mousedown", onClick);
+        }
     });
 }
 
 function applyChartLineBarSettings(chart, settings, chartType) {
-    // if the chart supports 'brushing' (brush-based range filter), disable this since it intercepts mouse hovers which means we can't see tooltips
-    if (chart.brushOn) {
-        chart.brushOn(false);
-    }
-
     // LINE/AREA:
     // for chart types that have an 'interpolate' option (line/area charts), enable based on settings
     if (chart.interpolate) {
@@ -487,6 +599,10 @@ function lineAndBarOnRender(chart, settings, onGoalHover, isSplitAxis, isStacked
                         dispatchUIEvent(e, "mouseleave");
                         d3.select(e).classed("hover", false);
                     })
+                    .on("click", ({ point }) => {
+                        let e = point[2];
+                        dispatchUIEvent(e, "click");
+                    })
                 .order();
 
         function dispatchUIEvent(element, eventName) {
@@ -542,7 +658,6 @@ function lineAndBarOnRender(chart, settings, onGoalHover, isSplitAxis, isStacked
 
     function disableClickFiltering() {
         chart.selectAll("rect.bar")
-            .style({ cursor: "inherit" })
             .on("click", (d) => {
                 chart.filter(null);
                 chart.filter(d.key);
@@ -746,17 +861,38 @@ function forceSortedGroupsOfGroups(groupsOfGroups: CrossfilterGroup[][], indexMa
 }
 
 
-export default function lineAreaBar(element, { series, onHoverChange, onRender, chartType, isScalarSeries, settings, maxSeries }) {
+export default function lineAreaBar(element, {
+    series,
+    onHoverChange,
+    onVisualizationClick,
+    onRender,
+    chartType,
+    isScalarSeries,
+    settings,
+    maxSeries,
+    onChangeCardAndRun
+}) {
     const colors = settings["graph.colors"];
 
     const isTimeseries = settings["graph.x_axis.scale"] === "timeseries";
     const isQuantitative = ["linear", "log", "pow"].indexOf(settings["graph.x_axis.scale"]) >= 0;
     const isOrdinal = !isTimeseries && !isQuantitative;
 
-    const isDimensionTimeseries = dimensionIsTimeseries(series[0].data);
-    const isDimensionNumeric = dimensionIsNumeric(series[0].data);
+    // is this a dashboard multiseries?
+    // TODO: better way to detect this?
+    const isMultiCardSeries = series.length > 1 &&
+        getIn(series, [0, "card", "id"]) !== getIn(series, [1, "card", "id"]);
 
-    if (series[0].data.cols.length < 2) {
+    const enableBrush = !!(onChangeCardAndRun && !isMultiCardSeries && isStructured(series[0].card));
+
+    // find the first nonempty single series
+    // $FlowFixMe
+    const firstSeries: SingleSeries = _.find(series, (s) => !datasetContainsNoResults(s.data));
+
+    const isDimensionTimeseries = dimensionIsTimeseries(firstSeries.data);
+    const isDimensionNumeric = dimensionIsNumeric(firstSeries.data);
+
+    if (firstSeries.data.cols.length < 2) {
         throw new Error("This chart type requires at least 2 columns.");
     }
 
@@ -896,7 +1032,11 @@ export default function lineAreaBar(element, { series, onHoverChange, onRender, 
 
         dimension = dataset.dimension(d => d[0]);
         groups = datas.map((data, seriesIndex) => {
+            // If the value is empty, pass a dummy array to crossfilter
+            data = data.length > 0 ? data : [[null, null]];
+
             let dim = crossfilter(data).dimension(d => d[0]);
+
             return data[0].slice(1).map((_, metricIndex) =>
                 reduceGroup(dim.group(), metricIndex + 1, () => warn(UNAGGREGATED_DATA_WARNING(series[seriesIndex].data.cols[0])))
             );
@@ -922,8 +1062,30 @@ export default function lineAreaBar(element, { series, onHoverChange, onRender, 
     let parent = dc.compositeChart(element);
     initChart(parent, element);
 
+    let isBrushing = false;
+    const onBrushChange = () => {
+        isBrushing = true;
+    }
+    const onBrushEnd = (range) => {
+        isBrushing = false;
+        if (range) {
+            const column = series[0].data.cols[0];
+            const card = series[0].card;
+            const [start, end] = range;
+            if (isDimensionTimeseries) {
+                onChangeCardAndRun(updateDateTimeFilter(card, column, start, end));
+            } else {
+                onChangeCardAndRun(updateNumericFilter(card, column, start, end));
+            }
+        }
+    }
+
     let charts = groups.map((group, index) => {
-        let chart = dc[getDcjsChartType(chartType)](parent);
+        let chart = getDcjsChart(chartType, parent);
+
+        if (enableBrush) {
+            initBrush(parent, chart, onBrushChange, onBrushEnd);
+        }
 
         // disable clicks
         chart.onClick = () => {};
@@ -989,7 +1151,8 @@ export default function lineAreaBar(element, { series, onHoverChange, onRender, 
 
     let onGoalHover = () => {};
     if (settings["graph.show_goal"]) {
-        const goalData = [[xDomain[0], settings["graph.goal_value"]], [xDomain[1], settings["graph.goal_value"]]];
+        const goalValue = settings["graph.goal_value"];
+        const goalData = [[xDomain[0], goalValue], [xDomain[1], goalValue]];
         const goalDimension = crossfilter(goalData).dimension(d => d[0]);
         const goalGroup = goalDimension.group().reduceSum(d => d[1]);
         const goalIndex = charts.length;
@@ -1006,8 +1169,8 @@ export default function lineAreaBar(element, { series, onHoverChange, onRender, 
 
         onGoalHover = (element) => {
             onHoverChange(element && {
-                element: element,
-                data: [{ key: "Goal", value: settings["graph.goal"] }]
+                element,
+                data: [{ key: "Goal", value: goalValue }]
             });
         }
     }
@@ -1065,15 +1228,16 @@ export default function lineAreaBar(element, { series, onHoverChange, onRender, 
     }
     const isSplitAxis = (right && right.series.length) && (left && left.series.length > 0);
 
-    applyChartTooltips(parent, series, isStacked, (hovered) => {
-        if (onHoverChange) {
+    applyChartTooltips(parent, series, isStacked, isScalarSeries, (hovered) => {
+        // disable tooltips while brushing
+        if (onHoverChange && !isBrushing) {
             // disable tooltips on lines
             if (hovered && hovered.element && hovered.element.classList.contains("line")) {
                 delete hovered.element;
             }
             onHoverChange(hovered);
         }
-    });
+    }, onVisualizationClick);
 
     // render
     parent.render();
@@ -1101,37 +1265,66 @@ export const scatterRenderer = (element, props) => lineAreaBar(element, { ...pro
 
 export function rowRenderer(
   element,
-  { settings, series, onHoverChange, height }
+  { settings, series, onHoverChange, onVisualizationClick, height }
 ) {
+  const { cols } = series[0].data;
+
+  if (series.length > 1) {
+    throw new Error("Row chart does not support multiple series");
+  }
+
   const chart = dc.rowChart(element);
+
+  // disable clicks
+  chart.onClick = () => {};
 
   const colors = settings["graph.colors"];
 
-  const dataset = crossfilter(series[0].data.rows);
+  // format the dimension axis
+  const rows = series[0].data.rows.map(row => [
+      formatValue(row[0], { column: cols[0], type: "axis" }),
+      row[1]
+  ]);
+  const dataset = crossfilter(rows);
   const dimension = dataset.dimension(d => d[0]);
   const group = dimension.group().reduceSum(d => d[1]);
-  const xDomain = d3.extent(series[0].data.rows, d => d[1]);
-  const yValues = series[0].data.rows.map(d => d[0]);
+  const xDomain = d3.extent(rows, d => d[1]);
+  const yValues = rows.map(d => d[0]);
 
   forceSortedGroup(group, makeIndexMap(yValues));
 
   initChart(chart, element);
 
   chart.on("renderlet.tooltips", chart => {
-    chart.selectAll(".row rect").on("mousemove", (d, i) => {
-      const { cols } = series[0].data;
-      onHoverChange && onHoverChange({
-          // for single series bar charts, fade the series and highlght the hovered element with CSS
-          index: -1,
-          event: d3.event,
-          data: [
-            { key: getFriendlyName(cols[0]), value: d.key, col: cols[0] },
-            { key: getFriendlyName(cols[1]), value: d.value, col: cols[1] }
-          ]
-        });
-    }).on("mouseleave", () => {
-      onHoverChange && onHoverChange(null);
-    });
+      if (onHoverChange) {
+          chart.selectAll(".row rect").on("mousemove", (d, i) => {
+            onHoverChange && onHoverChange({
+                // for single series bar charts, fade the series and highlght the hovered element with CSS
+                index: -1,
+                event: d3.event,
+                data: [
+                  { key: getFriendlyName(cols[0]), value: d.key, col: cols[0] },
+                  { key: getFriendlyName(cols[1]), value: d.value, col: cols[1] }
+                ]
+              });
+          }).on("mouseleave", () => {
+            onHoverChange && onHoverChange(null);
+          });
+      }
+
+      if (onVisualizationClick) {
+          chart.selectAll(".row rect").on("click", function(d) {
+              onVisualizationClick({
+                  value: d.value,
+                  column: cols[1],
+                  dimensions: [{
+                      value: d.key,
+                      column: cols[0]
+                  }],
+                  element: this
+              })
+          });
+      }
   });
 
   chart

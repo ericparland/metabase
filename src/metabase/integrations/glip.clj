@@ -9,8 +9,6 @@
 ;; Define settings which captures our Glip credentials and group to post to
 (defsetting glip-login "Glip login (usually comes in a form of email)")
 (defsetting glip-password "Glip password")
-;TODO:this probably shouldn't go to settings
-;(defsetting glip-group-id "Glip group id")
 
 (def ^:private ^:const ^String glip-api-base-url "https://api.glip.com")
 
@@ -24,7 +22,7 @@
 ;;TODO: refactor
 (defn groups-list []
   "Calls Glip api `index` function and returns the list of available channels."
-  (log/warn (u/pprint-to-str 'red (str (glip-login) (glip-password))))
+  (log/warn (u/pprint-to-str 'red (str (glip-login))))
   (http/put (str glip-api-base-url "/login") {:form-params {
                                                              :email (glip-login)
                                                              :password (glip-password)}
@@ -32,10 +30,6 @@
                                               :content-type :json})
   (:teams (json/parse-string (:body (http/get (str glip-api-base-url "/index") {:cookie-store cs :debug :true})) keyword)))
 
-;;TODO: rewrite
-;(def ^{:arglists '([& {:as args}])} users-list
-;  "Calls Slack api `users.list` function and returns the list of available users."
-;  (comp :members (partial GET :users.list)))
 
 (defn regenerate-cookie [] (http/put (str glip-api-base-url "/login") {:form-params {
                                                                                       :email (glip-login)

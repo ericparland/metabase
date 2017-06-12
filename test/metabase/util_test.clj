@@ -204,9 +204,41 @@
   (select-nested-keys {} [:c]))
 
 
-;; tests for base-64-string?
+;;; tests for base-64-string?
 (expect (base-64-string? "ABc"))
 (expect (base-64-string? "ABc/+asdasd=="))
 (expect false (base-64-string? 100))
 (expect false (base-64-string? "<<>>"))
 (expect false (base-64-string? "{\"a\": 10}"))
+
+
+;;; tests for `occurances-of-substring`
+
+;; return nil if one or both strings are nil or empty
+(expect nil (occurances-of-substring nil   nil))
+(expect nil (occurances-of-substring nil   ""))
+(expect nil (occurances-of-substring ""    nil))
+(expect nil (occurances-of-substring ""    ""))
+(expect nil (occurances-of-substring "ABC" ""))
+(expect nil (occurances-of-substring "" "  ABC"))
+
+(expect 1 (occurances-of-substring "ABC" "A"))
+(expect 2 (occurances-of-substring "ABA" "A"))
+(expect 3 (occurances-of-substring "AAA" "A"))
+
+(expect 0 (occurances-of-substring "ABC"                                                                               "{{id}}"))
+(expect 1 (occurances-of-substring "WHERE ID = {{id}}"                                                                 "{{id}}"))
+(expect 2 (occurances-of-substring "WHERE ID = {{id}} OR USER_ID = {{id}}"                                             "{{id}}"))
+(expect 3 (occurances-of-substring "WHERE ID = {{id}} OR USER_ID = {{id}} OR TOUCAN_ID = {{id}} OR BIRD_ID = {{bird}}" "{{id}}"))
+
+
+;;; tests for `select-non-nil-keys` and `select-keys-when`
+(expect
+  {:a 100}
+  (select-non-nil-keys {:a 100, :b nil} #{:a :b :c}))
+
+(expect
+  {:a 100, :b nil, :d 200}
+  (select-keys-when {:a 100, :b nil, :d 200, :e nil}
+    :present #{:a :b :c}
+    :non-nil #{:d :e :f}))

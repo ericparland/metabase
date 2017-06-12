@@ -1,6 +1,6 @@
 /* @flow */
 
-import React, { Component, PropTypes } from "react";
+import React, { Component } from "react";
 import ReactDOM from "react-dom";
 
 import { constrainToScreen } from "metabase/lib/dom";
@@ -11,7 +11,9 @@ type Props = {
     children: React$Element<any>
 };
 
-export default class ConstrainToScreen extends Component<*, Props, *> {
+export default class ConstrainToScreen extends Component {
+    props: Props;
+
     static defaultProps = {
         directions: ["top", "bottom"],
         padding: 10
