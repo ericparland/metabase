@@ -119,7 +119,7 @@
    :email_configured      ((resolve 'metabase.email/email-configured?))
    :enable_query_caching  (enable-query-caching)
    :engines               ((resolve 'metabase.driver/available-drivers))
-   :ga_code               "UA-60817802-1"
+   :ga_code               "UA-91542416-1"
    :google_auth_client_id (setting/get :google-auth-client-id)
    :ldap_configured       ((resolve 'metabase.integrations.ldap/ldap-configured?))
    :has_sample_dataset    (db/exists? 'Database, :is_sample true)

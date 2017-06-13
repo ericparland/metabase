@@ -47,7 +47,7 @@
                            :else       0)
                         m))))
 
-(def ^:private ^:const ^String metabase-usage-url "https://xuq0fbkk0j.execute-api.us-east-1.amazonaws.com/prod")
+(def ^:private ^:const ^String metabase-usage-url "http://localhost");;"https://xuq0fbkk0j.execute-api.us-east-1.amazonaws.com/prod")
 
 (def ^:private ^Integer anonymous-id
   "Generate an anonymous id. Don't worry too much about hash collisions or localhost cases, etc.

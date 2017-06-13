@@ -53,7 +53,7 @@ export default class Setup extends Component {
                     <div className="wrapper wrapper--trim text-centered">
                         <LogoIcon className="text-brand mb4" width={89} height={118}></LogoIcon>
                         <div className="relative z2 text-centered ml-auto mr-auto" style={{maxWidth: 550}}>
-                            <h1 style={{fontSize: '2.2rem'}} className="text-brand">Welcome to Metabase</h1>
+                            <h1 style={{fontSize: '2.2rem'}} className="text-brand">Welcome to RC Data Tool</h1>
                             <p className="text-body">Looks like everything is working. Now let’s get to know you, connect to your data, and start finding you some answers!</p>
                             <button className="Button Button--primary mt4" onClick={() => (this.completeWelcome())}>Let's get started</button>
                         </div>
@@ -86,7 +86,7 @@ export default class Setup extends Component {
                                         <NewsletterForm initialEmail={userDetails && userDetails.email} />
                                     </div>
                                     <div className="pt4 pb2">
-                                        <Link to="/?new" className="Button Button--primary" onClick={this.completeSetup.bind(this)}>Take me to Metabase</Link>
+                                        <Link to="/?new" className="Button Button--primary" onClick={this.completeSetup.bind(this)}>Take me to RC Data Tool</Link>
                                     </div>
                                 </section>
                             : null }

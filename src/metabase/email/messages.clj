@@ -38,11 +38,11 @@
 
 (def ^:private ^:const abandonment-context
   {:heading      "We’d love your feedback."
-   :callToAction "It looks like Metabase wasn’t quite a match for you. Would you mind taking a fast 5 question survey to help the Metabase team understand why and make things better in the future?"
+   :callToAction "It looks like RC Data Tool wasn’t quite a match for you. Would you mind taking a fast 5 question survey to help the RC Data Tool team understand why and make things better in the future?"
    :link         "http://www.metabase.com/feedback/inactive"})
 
 (def ^:private ^:const follow-up-context
-  {:heading      "We hope you've been enjoying Metabase."
+  {:heading      "We hope you've been enjoying RC Data Tool."
    :callToAction "Would you mind taking a fast 6 question survey to tell us how it’s going?"
    :link         "http://www.metabase.com/feedback/active"})
 
@@ -50,7 +50,7 @@
 ;;; ### Public Interface
 
 (defn send-new-user-email!
-  "Send an email to INVITIED letting them know INVITOR has invited them to join Metabase."
+  "Send an email to INVITIED letting them know INVITOR has invited them to join RC Data Tool."
   [invited invitor join-url]
   (let [company      (or (public-settings/site-name) "Unknown")
         message-body (stencil/render-file "metabase/email/new_user_invite"
@@ -64,7 +64,7 @@
                                :logoHeader   true}
                               (random-quote-context)))]
     (email/send-message!
-      :subject      (str "You're invited to join " company "'s Metabase")
+      :subject      (str "You're invited to join " company "'s RC Data Tool")
       :recipients   [(:email invited)]
       :message-type :html
       :message      message-body)))
@@ -85,8 +85,8 @@
   (let [recipients (all-admin-recipients)]
     (email/send-message!
       :subject      (format (if google-auth?
-                              "%s created a Metabase account"
-                              "%s accepted their Metabase invite")
+                              "%s created a RC Data Tool account"
+                              "%s accepted their RC Data Tool invite")
                             (:common_name new-user))
       :recipients   recipients
       :message-type :html
@@ -115,7 +115,7 @@
                         :passwordResetUrl password-reset-url
                         :logoHeader       true})]
     (email/send-message!
-      :subject      "[Metabase] Password Reset Request"
+      :subject      "[RC Data Tool] Password Reset Request"
       :recipients   [email]
       :message-type :html
       :message      message-body)))
@@ -153,7 +153,7 @@
                             (random-quote-context))
         message-body (stencil/render-file "metabase/email/notification" context)]
     (email/send-message!
-      :subject      "[Metabase] Notification"
+      :subject      "[RC Data Tool] Notification"
       :recipients   [email]
       :message-type :html
       :message      message-body)))
@@ -163,8 +163,8 @@
   [email msg-type]
   {:pre [(u/is-email? email) (contains? #{"abandon" "follow-up"} msg-type)]}
   (let [subject      (if (= "abandon" msg-type)
-                       "[Metabase] Help make Metabase better."
-                       "[Metabase] Tell us how things are going.")
+                       "[RC Data Tool] Help make RC Data Tool better."
+                       "[RC Data Tool] Tell us how things are going.")
         context      (merge notification-context
                             (random-quote-context)
                             (if (= "abandon" msg-type)
