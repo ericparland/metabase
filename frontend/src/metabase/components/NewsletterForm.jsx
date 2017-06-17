@@ -41,7 +41,7 @@ export default class NewsletterForm extends Component {
         formData.append("b_869fec0e4689e8fd1db91e795_b9664113a8", "");
 
         let req = new XMLHttpRequest();
-        req.open("POST", "https://metabase.us10.list-manage.com/subscribe/post?u=869fec0e4689e8fd1db91e795&id=b9664113a8");
+        req.open("POST", "https://localhost/subscribe/post?u=869fec0e4689e8fd1db91e795&id=b9664113a8");
         req.send(formData);
 
         this.setState({submitted: true});
@@ -56,7 +56,7 @@ export default class NewsletterForm extends Component {
                 <div style={this.styles.label} className="absolute text-centered left right">
                     <div className="px3 bg-white h5 text-bold text-grey-4 text-uppercase inline-block">
                       <Icon className="mr1 float-left" name="mail" size={16} />
-                      <span className="inline-block" style={{marginTop: 1}}>Metabase Newsletter</span>
+                      <span className="inline-block" style={{marginTop: 1}}>RC Data Tool Newsletter</span>
                     </div>
                 </div>
 
@@ -75,7 +75,7 @@ export default class NewsletterForm extends Component {
                                     </div>
                                 :
                                     <div className="text-success text-centered text-bold h3 p1">
-                                        <Icon className="mr2" name="check" size={16} />You're subscribed.  Thanks for using Metabase!
+                                        <Icon className="mr2" name="check" size={16} />You're subscribed.  Thanks for using RC Data Tool!
                                     </div>
                                 }
                             </div>
